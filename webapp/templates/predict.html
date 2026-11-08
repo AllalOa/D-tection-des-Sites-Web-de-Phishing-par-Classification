@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Tester le Modèle{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <!-- ── Hero ────────────────────────────────────────────── -->
+        <div class="hero text-center px-4 mb-4">
+            <h2><i class="bi bi-search me-2"></i>Tester le Modèle</h2>
+            <p class="mb-0 opacity-75">Entrez une URL pour vérifier si elle est légitime ou phishing</p>
+        </div>
+
+        <!-- ── Form ────────────────────────────────────────────── -->
+        <div class="card kpi-card mb-4">
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <label for="urlInput" class="form-label fw-bold">
+                        <i class="bi bi-link-45deg me-1"></i>URL à analyser
+                    </label>
+                    <input type="text" class="form-control predict-input" id="urlInput"
+                           placeholder="https://www.example.com/login?user=test"
+                           autocomplete="off">
+                    <div class="form-text">
+                        L'URL doit inclure le schéma (https://) et un hôte valide. Max 2048 caractères.
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="expSelect" class="form-label fw-bold">
+                        <i class="bi bi-flask me-1"></i>Modèle (Expérience)
+                    </label>
+                    <select class="form-select" id="expSelect">
+                        <option value="" selected>Auto (meilleur modèle disponible)</option>
+                        {% for key in exp_order %}
+                        <option value="{{ key }}">{{ experiments[key].name }} — {{ experiments[key].n_features }} features</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button class="btn btn-primary btn-lg w-100" id="predictBtn" onclick="predictURL()">
+                    <i class="bi bi-cpu me-2"></i>Analyser l'URL
+                </button>
+
+                <!-- Spinner -->
+                <div class="text-center mt-3 spinner-predict" id="spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Analyse en cours...</span>
+                    </div>
+                    <p class="text-muted mt-2">Analyse en cours...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Result ──────────────────────────────────────────── -->
+        <div id="resultArea" style="display:none">
+            <div class="card result-card mb-4" id="resultCard">
+                <div class="card-body p-4 text-center" id="resultHeader">
+                    <i id="resultIcon" style="font-size:3rem"></i>
+                    <h2 class="mt-2" id="resultLabel"></h2>
+                    <p class="mb-0 opacity-75" id="resultUrl"></p>
+                </div>
+                <div class="card-body bg-white p-4">
+                    <div class="row text-center g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="fw-bold fs-5" id="resultScore">—</div>
+                            <small class="text-muted">Score du Modèle</small>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="fw-bold fs-5" id="resultThreshold">—</div>
+                            <small class="text-muted">Seuil Utilisé</small>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="fw-bold fs-5" id="resultModel">—</div>
+                            <small class="text-muted">Modèle</small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info small mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <strong>Note :</strong> Le score du modèle n'est <strong>pas</strong> une probabilité calibrée.
+                        C'est le score brut de predict_proba ou decision_function.
+                    </div>
+
+                    <!-- Feature Values -->
+                    <h5 class="fw-bold mt-3 mb-2">
+                        <i class="bi bi-list-columns me-2"></i>Features Calculées
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr><th>Feature</th><th class="text-end">Valeur</th></tr>
+                            </thead>
+                            <tbody id="featuresTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Error ───────────────────────────────────────────── -->
+        <div class="alert alert-danger" id="errorArea" style="display:none">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <span id="errorMessage"></span>
+        </div>
+
+        <!-- ── Examples ────────────────────────────────────────── -->
+        <div class="card kpi-card">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3"><i class="bi bi-lightbulb me-2"></i>Exemples d'URLs à tester</h5>
+                <div class="list-group list-group-flush">
+                    <a href="#" class="list-group-item list-group-item-action example-url"
+                       data-url="https://www.google.com">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        https://www.google.com
+                        <span class="badge bg-success float-end">Légitime</span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action example-url"
+                       data-url="https://www.github.com/settings/profile">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        https://www.github.com/settings/profile
+                        <span class="badge bg-success float-end">Légitime</span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action example-url"
+                       data-url="http://192.168.1.1/admin/login.php?redirect=https://bank.com&session=abc123">
+                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                        http://192.168.1.1/admin/login.php?redirect=...
+                        <span class="badge bg-danger float-end">Suspect</span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action example-url"
+                       data-url="http://secure-paypal-login.suspicious-site.xyz/verify?id=12345&token=abc">
+                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                        http://secure-paypal-login.suspicious-site.xyz/verify?...
+                        <span class="badge bg-danger float-end">Suspect</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Click examples ──
+document.querySelectorAll('.example-url').forEach(el => {
+    el.addEventListener('click', e => {
+        e.preventDefault();
+        document.getElementById('urlInput').value = el.dataset.url;
+        predictURL();
+    });
+});
+
+// ── Predict via AJAX ──
+async function predictURL() {
+    const url = document.getElementById('urlInput').value.trim();
+    const experiment = document.getElementById('expSelect').value || null;
+
+    if (!url) {
+        showError("Veuillez entrer une URL.");
+        return;
+    }
+
+    // UI state
+    document.getElementById('resultArea').style.display = 'none';
+    document.getElementById('errorArea').style.display = 'none';
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('predictBtn').disabled = true;
+
+    try {
+        const resp = await fetch('/api/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, experiment }),
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            showError(data.error);
+            return;
+        }
+
+        showResult(data);
+    } catch (err) {
+        showError("Erreur de connexion au serveur : " + err.message);
+    } finally {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('predictBtn').disabled = false;
+    }
+}
+
+function showResult(data) {
+    const area = document.getElementById('resultArea');
+    const header = document.getElementById('resultHeader');
+    const icon = document.getElementById('resultIcon');
+    const label = document.getElementById('resultLabel');
+
+    if (data.predicted_class === 1) {
+        header.className = 'card-body p-4 text-center result-phishing';
+        icon.className = 'bi bi-exclamation-triangle-fill';
+        label.textContent = '⚠ PHISHING DÉTECTÉ';
+    } else {
+        header.className = 'card-body p-4 text-center result-legitime';
+        icon.className = 'bi bi-check-circle-fill';
+        label.textContent = '✓ URL LÉGITIME';
+    }
+
+    document.getElementById('resultUrl').textContent = data.url;
+    document.getElementById('resultScore').textContent = data.model_score.toFixed(6);
+    document.getElementById('resultThreshold').textContent = data.threshold_used.toFixed(4);
+    document.getElementById('resultModel').textContent = data.model_name + ' (' + data.experiment + ')';
+
+    // Features table
+    const tbody = document.getElementById('featuresTable');
+    tbody.innerHTML = '';
+    for (const [key, val] of Object.entries(data.features)) {
+        const tr = document.createElement('tr');
+        tr.className = 'feature-row';
+        tr.innerHTML = `<td><code>${key}</code></td><td class="text-end fw-bold">${typeof val === 'number' ? val.toFixed(4) : val}</td>`;
+        tbody.appendChild(tr);
+    }
+
+    area.style.display = 'block';
+    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showError(msg) {
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('predictBtn').disabled = false;
+    document.getElementById('errorMessage').textContent = msg;
+    document.getElementById('errorArea').style.display = 'block';
+}
+
+// ── Enter key ──
+document.getElementById('urlInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter') predictURL();
+});
+</script>
+{% endblock %}
