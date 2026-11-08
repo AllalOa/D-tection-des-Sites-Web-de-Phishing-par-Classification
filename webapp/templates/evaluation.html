@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% block title %}Évaluation — {{ exp.short }}{% endblock %}
+
+{% block content %}
+<!-- ── Header ──────────────────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="section-title mb-0">
+            <i class="bi bi-clipboard-data me-2"></i>Évaluation — {{ exp.name }}
+        </h2>
+        <p class="text-muted mt-1 mb-0">{{ exp.description }}</p>
+    </div>
+    <div>
+        <div class="btn-group" role="group">
+        {% for key in exp_order %}
+            <a href="{{ url_for('evaluation', experiment=key) }}"
+               class="btn {% if key == experiment %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+                {{ experiments[key].short }}
+            </a>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ── Metrics Cards ───────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-md-2 col-4">
+        <div class="card kpi-card text-center">
+            <div class="card-body py-3">
+                <div class="kpi-value text-primary" style="font-size:1.5rem">{{ exp.metrics.pr_auc | fmt4 }}</div>
+                <div class="kpi-label">PR-AUC</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-4">
+        <div class="card kpi-card text-center">
+            <div class="card-body py-3">
+                <div class="kpi-value text-primary" style="font-size:1.5rem">{{ exp.metrics.roc_auc | fmt4 }}</div>
+                <div class="kpi-label">ROC-AUC</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-4">
+        <div class="card kpi-card text-center">
+            <div class="card-body py-3">
+                <div class="kpi-value text-success" style="font-size:1.5rem">{{ exp.metrics.precision | pct }}</div>
+                <div class="kpi-label">Precision</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-4">
+        <div class="card kpi-card text-center">
+            <div class="card-body py-3">
+                <div class="kpi-value text-success" style="font-size:1.5rem">{{ exp.metrics.recall | pct }}</div>
+                <div class="kpi-label">Recall</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-4">
+        <div class="card kpi-card text-center">
+            <div class="card-body py-3">
+                <div class="kpi-value text-warning" style="font-size:1.5rem">{{ exp.metrics.f1 | pct }}</div>
+                <div class="kpi-label">F1-Score</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 col-4">
+        <div class="card kpi-card text-center">
+            <div class="card-body py-3">
+                <div class="kpi-value" style="font-size:1.5rem; color: {{ exp.color }}">{{ exp.n_features }}</div>
+                <div class="kpi-label">Features</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Confusion Matrix + Info ─────────────────────────────────── -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        <div class="card kpi-card h-100">
+            <div class="card-header bg-transparent fw-bold">
+                <i class="bi bi-grid-3x3 me-2"></i>Matrice de Confusion (Test — {{ "46 878" }} obs.)
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <table class="table table-bordered cm-table mb-0" style="max-width:350px">
+                    <thead class="table-light">
+                        <tr><th></th><th>Prédit<br>Légitime</th><th>Prédit<br>Phishing</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th class="table-light">Réel<br>Légitime</th>
+                            <td class="cm-tn">
+                                <div class="fs-4">{{ exp.metrics.tn | fmt_int }}</div>
+                                <small>VN</small>
+                            </td>
+                            <td class="cm-fp">
+                                <div class="fs-4">{{ exp.metrics.fp }}</div>
+                                <small>FP</small>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="table-light">Réel<br>Phishing</th>
+                            <td class="cm-fn">
+                                <div class="fs-4">{{ exp.metrics.fn }}</div>
+                                <small>FN ⚠</small>
+                            </td>
+                            <td class="cm-tp">
+                                <div class="fs-4">{{ exp.metrics.tp | fmt_int }}</div>
+                                <small>VP</small>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-transparent small text-muted">
+                <strong>FN</strong> = Phishing classé légitime (danger critique) &nbsp;|&nbsp;
+                <strong>FP</strong> = Légitime classé phishing (faux alarme)
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card kpi-card h-100">
+            <div class="card-header bg-transparent fw-bold">
+                <i class="bi bi-info-circle me-2"></i>Informations du Modèle
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless mb-0">
+                    <tr>
+                        <td class="text-muted" style="width:200px">Meilleur modèle</td>
+                        <td class="fw-bold">{{ exp.best_model }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Hyperparamètres</td>
+                        <td><code>{{ exp.hyperparams }}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">CV Average Precision</td>
+                        <td>{{ exp.cv_ap }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Temps d'entraînement</td>
+                        <td>{{ exp.train_time }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Accès réseau requis</td>
+                        <td>
+                            {% if exp.needs_network %}
+                            <span class="badge bg-warning text-dark">Oui (crawl page)</span>
+                            {% else %}
+                            <span class="badge bg-success">Non (URL seule)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if metadata %}
+                    <tr>
+                        <td class="text-muted">scikit-learn</td>
+                        <td>{{ metadata.get('sklearn_version', 'N/A') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Date d'entraînement</td>
+                        <td>{{ metadata.get('date', 'N/A')[:19] }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── PR/ROC Curves ───────────────────────────────────────────── -->
+{% if figures.get('pr_roc') %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-bold">
+                <i class="bi bi-graph-up me-2"></i>Courbes Precision-Recall et ROC
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ url_for('serve_figure', filename=figures.pr_roc) }}"
+                     alt="PR and ROC curves" class="img-figure" style="max-height:400px">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Learning Curve ──────────────────────────────────────────── -->
+{% if figures.get('learning_curve') %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-bold">
+                <i class="bi bi-graph-up-arrow me-2"></i>Courbe d'Apprentissage
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ url_for('serve_figure', filename=figures.learning_curve) }}"
+                     alt="Learning curve" class="img-figure" style="max-height:400px">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Feature Importance (C only) ─────────────────────────────── -->
+{% if feat_importance %}
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="chart-container">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-sort-down me-2"></i>Importance des Features (Permutation — Test)
+            </h5>
+            <canvas id="featureImportanceChart" height="150"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card kpi-card h-100">
+            <div class="card-header bg-transparent fw-bold">Classement détaillé</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>#</th><th>Feature</th><th class="text-end">Importance</th><th class="text-end">Std</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for f in feat_importance %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><code>{{ f.feature }}</code></td>
+                                <td class="text-end fw-bold">{{ "%.4f" | format(f.importance_mean) }}</td>
+                                <td class="text-end text-muted">± {{ "%.4f" | format(f.importance_std) }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── All Models on Test ──────────────────────────────────────── -->
+{% if test_metrics %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-bold">
+                <i class="bi bi-table me-2"></i>Tous les Modèles — Métriques sur le Test
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Modèle</th>
+                                <th class="text-center">Seuil</th>
+                                <th class="text-center">PR-AUC</th>
+                                <th class="text-center">ROC-AUC</th>
+                                <th class="text-center">Precision</th>
+                                <th class="text-center">Recall</th>
+                                <th class="text-center">F1</th>
+                                <th class="text-center">TP</th>
+                                <th class="text-center">FP</th>
+                                <th class="text-center">FN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for row in test_metrics %}
+                            <tr>
+                                <td class="fw-bold">{{ row.model }}</td>
+                                <td class="text-center">
+                                    {% if row.threshold is number %}
+                                    {{ "%.4f" | format(row.threshold) }}
+                                    {% else %}{{ row.threshold }}{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if row.pr_auc is number %}
+                                    {{ "%.4f" | format(row.pr_auc) }}
+                                    {% else %}{{ row.pr_auc }}{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if row.roc_auc is number %}
+                                    {{ "%.4f" | format(row.roc_auc) }}
+                                    {% else %}{{ row.roc_auc }}{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if row.precision is number %}
+                                    {{ "%.2f" | format(row.precision * 100) }}%
+                                    {% else %}{{ row.precision }}{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if row.recall is number %}
+                                    {{ "%.2f" | format(row.recall * 100) }}%
+                                    {% else %}{{ row.recall }}{% endif %}
+                                </td>
+                                <td class="text-center fw-bold">
+                                    {% if row.f1 is number %}
+                                    {{ "%.2f" | format(row.f1 * 100) }}%
+                                    {% else %}{{ row.f1 }}{% endif %}
+                                </td>
+                                <td class="text-center">{{ row.TP | default('—') }}</td>
+                                <td class="text-center">{{ row.FP | default('—') }}</td>
+                                <td class="text-center">{{ row.FN | default('—') }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Leave-TLD-Out ───────────────────────────────────────────── -->
+{% if tld_out %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-bold">
+                <i class="bi bi-diagram-3 me-2"></i>Robustesse — Leave-One-TLD-Out
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>TLD</th>
+                                <th class="text-center">N</th>
+                                <th class="text-center">Phishing</th>
+                                <th class="text-center">Légitime</th>
+                                <th class="text-center">Recall</th>
+                                <th class="text-center">FN</th>
+                                <th class="text-center">FP</th>
+                                <th class="text-center">ROC-AUC</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for row in tld_out %}
+                            <tr>
+                                <td class="fw-bold">.{{ row.TLD }}</td>
+                                <td class="text-center">{{ row.n_samples | default('—') }}</td>
+                                <td class="text-center">{{ row.n_phishing | default('—') }}</td>
+                                <td class="text-center">{{ row.n_legitime | default('—') }}</td>
+                                <td class="text-center">
+                                    {% if row.recall is number %}
+                                    {{ "%.2f" | format(row.recall * 100) }}%
+                                    {% else %}{{ row.recall | default('—') }}{% endif %}
+                                </td>
+                                <td class="text-center">{{ row.FN | default('—') }}</td>
+                                <td class="text-center">{{ row.FP | default('—') }}</td>
+                                <td class="text-center">{{ row.roc_auc | default('—') }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent small text-muted">
+                Entraîné sur tous les TLD sauf le TLD indiqué, évalué uniquement sur ce TLD.
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Subgroup Analysis ───────────────────────────────────────── -->
+{% if subgroups %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card kpi-card">
+            <div class="card-header bg-transparent fw-bold">
+                <i class="bi bi-people me-2"></i>Analyse par Sous-Groupe (G1 / G2)
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info small mb-3">
+                    <strong>G1</strong> : URLs commençant par <code>https://www.</code> &nbsp;|&nbsp;
+                    <strong>G2</strong> : G1 sans chemin, requête ni fragment (URLs minimales)
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Sous-groupe</th>
+                                <th>Modèle</th>
+                                <th class="text-center">N</th>
+                                <th class="text-center">Phishing</th>
+                                <th class="text-center">PR-AUC</th>
+                                <th class="text-center">ROC-AUC</th>
+                                <th class="text-center">FP (seuil 0.5)</th>
+                                <th class="text-center">FN (seuil 0.5)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for row in subgroups %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ row.subgroup }}</span></td>
+                                <td>{{ row.model }}</td>
+                                <td class="text-center">{{ row.n_total | default('—') }}</td>
+                                <td class="text-center">{{ row.n_phishing | default('—') }}</td>
+                                <td class="text-center">
+                                    {% if row.pr_auc is number %}
+                                    {{ "%.4f" | format(row.pr_auc) }}
+                                    {% else %}{{ row.pr_auc | default('—') }}{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if row.roc_auc is number %}
+                                    {{ "%.4f" | format(row.roc_auc) }}
+                                    {% else %}{{ row.roc_auc | default('—') }}{% endif %}
+                                </td>
+                                <td class="text-center">{{ row.get('FP_at_0.5', '—') }}</td>
+                                <td class="text-center">{{ row.get('FN_at_0.5', '—') }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if feat_importance %}
+<script>
+// ── Feature Importance Chart ──
+const featLabels = [{% for f in feat_importance %}'{{ f.feature }}'{% if not loop.last %}, {% endif %}{% endfor %}];
+const featValues = [{% for f in feat_importance %}{{ f.importance_mean }}{% if not loop.last %}, {% endif %}{% endfor %}];
+const featColors = featValues.map((v, i) => {
+    const intensity = Math.max(0.2, 1 - i * 0.05);
+    return `rgba(13, 110, 253, ${intensity})`;
+});
+
+const ctxFeat = document.getElementById('featureImportanceChart').getContext('2d');
+new Chart(ctxFeat, {
+    type: 'bar',
+    data: {
+        labels: featLabels,
+        datasets: [{
+            label: 'Importance (permutation)',
+            data: featValues,
+            backgroundColor: featColors,
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        scales: { x: { beginAtZero: true } },
+        plugins: { legend: { display: false } }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
