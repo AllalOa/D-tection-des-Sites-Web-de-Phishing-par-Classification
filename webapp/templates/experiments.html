@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% block title %}Expériences{% endblock %}
+
+{% block content %}
+<h2 class="section-title"><i class="bi bi-bar-chart-line me-2"></i>Comparaison des Expériences</h2>
+
+<!-- ── Main Comparison Table ────────────────────────────────────── -->
+<div class="table-responsive mb-4">
+    <table class="table table-clean align-middle">
+        <thead>
+            <tr>
+                <th>Expérience</th>
+                <th>Features</th>
+                <th>Modèle</th>
+                <th class="text-center">PR-AUC</th>
+                <th class="text-center">ROC-AUC</th>
+                <th class="text-center">Precision</th>
+                <th class="text-center">Recall</th>
+                <th class="text-center">F1-Score</th>
+                <th class="text-center">FP</th>
+                <th class="text-center">FN</th>
+                <th class="text-center">Offline</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for key in exp_order %}
+        {% set exp = experiments[key] %}
+            <tr {% if key == 'C' %}class="table-success"{% endif %}>
+                <td>
+                    <span class="exp-badge" style="background-color:{{ exp.color }}">{{ exp.short }}</span>
+                </td>
+                <td>
+                    <span class="fw-bold">{{ exp.n_features }}</span>
+                    <small class="text-muted d-block">{{ exp.feature_type }}</small>
+                </td>
+                <td>
+                    {{ exp.best_model }}
+                    <small class="text-muted d-block">{{ exp.hyperparams }}</small>
+                </td>
+                <td class="text-center fw-bold">{{ exp.metrics.pr_auc | fmt4 }}</td>
+                <td class="text-center fw-bold">{{ exp.metrics.roc_auc | fmt4 }}</td>
+                <td class="text-center">{{ exp.metrics.precision | pct }}</td>
+                <td class="text-center">{{ exp.metrics.recall | pct }}</td>
+                <td class="text-center fw-bold">{{ exp.metrics.f1 | pct }}</td>
+                <td class="text-center">
+                    {% if exp.metrics.fp == 0 %}
+                    <span class="badge bg-success">0</span>
+                    {% elif exp.metrics.fp < 100 %}
+                    <span class="badge bg-warning text-dark">{{ exp.metrics.fp }}</span>
+                    {% else %}
+                    <span class="badge bg-danger">{{ exp.metrics.fp | fmt_int }}</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if exp.metrics.fn == 0 %}
+                    <span class="badge bg-success">0</span>
+                    {% elif exp.metrics.fn < 100 %}
+                    <span class="badge bg-warning text-dark">{{ exp.metrics.fn }}</span>
+                    {% else %}
+                    <span class="badge bg-danger">{{ exp.metrics.fn | fmt_int }}</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if not exp.needs_network %}
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                    {% else %}
+                    <i class="bi bi-x-circle text-muted"></i>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="row mb-3">
+    <div class="col">
+        <div class="alert alert-success">
+            <i class="bi bi-star-fill me-2"></i>
+            <strong>Exp. C (ligne verte)</strong> est le modèle recommandé pour le déploiement :
+            F1 = 99.36 % avec uniquement des features URL, aucun accès réseau, prédiction &lt; 1 ms.
+        </div>
+    </div>
+</div>
+
+<!-- ── Charts Row ──────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="chart-container">
+            <h5 class="fw-bold mb-3">Métriques de Classification (Test)</h5>
+            <canvas id="metricsRadar" height="130"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="chart-container">
+            <h5 class="fw-bold mb-3">Erreurs : Faux Positifs vs Faux Négatifs</h5>
+            <canvas id="errorsChart" height="130"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- ── Experiment Details ──────────────────────────────────────── -->
+<h3 class="section-title"><i class="bi bi-info-circle me-2"></i>Détails par Expérience</h3>
+
+<div class="row g-3 mb-4">
+{% for key in exp_order %}
+{% set exp = experiments[key] %}
+    <div class="col-lg-4 col-md-6">
+        <div class="card exp-card exp-{{ exp.tag }} h-100">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="mb-0" style="color: {{ exp.color }}">{{ exp.short }}</h5>
+                {% if not exp.needs_network %}
+                <span class="badge bg-success">Déployable</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">{{ exp.description }}</p>
+
+                <table class="table table-sm table-borderless mb-2">
+                    <tr><td class="text-muted">Features</td><td class="text-end fw-bold">{{ exp.n_features }}</td></tr>
+                    <tr><td class="text-muted">Type</td><td class="text-end">{{ exp.feature_type }}</td></tr>
+                    <tr><td class="text-muted">Meilleur modèle</td><td class="text-end">{{ exp.best_model }}</td></tr>
+                    <tr><td class="text-muted">Hyperparamètres</td><td class="text-end"><small>{{ exp.hyperparams }}</small></td></tr>
+                    <tr><td class="text-muted">CV AP (train)</td><td class="text-end">{{ exp.cv_ap }}</td></tr>
+                    <tr><td class="text-muted">Temps entraîn.</td><td class="text-end">{{ exp.train_time }}</td></tr>
+                </table>
+
+                <h6 class="fw-bold mt-3">Matrice de Confusion (Test)</h6>
+                <table class="table table-sm table-bordered cm-table text-center mb-0">
+                    <thead class="table-light">
+                        <tr><th></th><th>Prédit Lég.</th><th>Prédit Phi.</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th class="table-light">Réel Lég.</th>
+                            <td class="cm-tn">{{ exp.metrics.tn | fmt_int }}</td>
+                            <td class="cm-fp">{{ exp.metrics.fp }}</td>
+                        </tr>
+                        <tr>
+                            <th class="table-light">Réel Phi.</th>
+                            <td class="cm-fn">{{ exp.metrics.fn }}</td>
+                            <td class="cm-tp">{{ exp.metrics.tp | fmt_int }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-transparent text-center">
+                <a href="{{ url_for('evaluation', experiment=key) }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-clipboard-data me-1"></i>Évaluation détaillée
+                </a>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+
+<!-- ── CV Results ──────────────────────────────────────────────── -->
+{% if cv_results %}
+<h3 class="section-title"><i class="bi bi-table me-2"></i>Résultats de Validation Croisée</h3>
+
+<ul class="nav nav-tabs" id="cvTabs" role="tablist">
+{% for key in exp_order %}
+    {% if key in cv_results %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {% if loop.first %}active{% endif %}" id="cv-tab-{{ key }}"
+                data-bs-toggle="tab" data-bs-target="#cv-pane-{{ key }}"
+                type="button" role="tab">{{ experiments[key].short }}</button>
+    </li>
+    {% endif %}
+{% endfor %}
+</ul>
+
+<div class="tab-content" id="cvTabContent">
+{% for key in exp_order %}
+    {% if key in cv_results %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cv-pane-{{ key }}" role="tabpanel">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Modèle</th>
+                        <th class="text-center">AP Mean</th>
+                        <th class="text-center">AP Std</th>
+                        <th class="text-center">ROC-AUC Mean</th>
+                        <th class="text-center">F1 Mean</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for row in cv_results[key] %}
+                    <tr>
+                        <td>{{ row.model }}</td>
+                        <td class="text-center fw-bold">
+                            {% if row.average_precision_mean is defined and row.average_precision_mean %}
+                            {{ "%.4f" | format(row.average_precision_mean) }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-center text-muted">
+                            {% if row.average_precision_std is defined and row.average_precision_std %}
+                            ± {{ "%.4f" | format(row.average_precision_std) }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if row.roc_auc_mean is defined and row.roc_auc_mean %}
+                            {{ "%.4f" | format(row.roc_auc_mean) }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if row.f1_mean is defined and row.f1_mean %}
+                            {{ "%.4f" | format(row.f1_mean) }}
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Radar Chart ──
+const ctxRadar = document.getElementById('metricsRadar').getContext('2d');
+new Chart(ctxRadar, {
+    type: 'radar',
+    data: {
+        labels: ['PR-AUC', 'ROC-AUC', 'Precision', 'Recall', 'F1'],
+        datasets: [
+        {% for key in exp_order %}
+        {
+            label: '{{ experiments[key].short }}',
+            data: [
+                {{ experiments[key].metrics.pr_auc }},
+                {{ experiments[key].metrics.roc_auc }},
+                {{ experiments[key].metrics.precision }},
+                {{ experiments[key].metrics.recall }},
+                {{ experiments[key].metrics.f1 }},
+            ],
+            borderColor: '{{ experiments[key].color }}',
+            backgroundColor: '{{ experiments[key].color }}22',
+            borderWidth: 2,
+            pointRadius: 3,
+        },
+        {% endfor %}
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { r: { min: 0.5, max: 1.0 } },
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+
+// ── Errors Bar Chart ──
+const ctxErr = document.getElementById('errorsChart').getContext('2d');
+new Chart(ctxErr, {
+    type: 'bar',
+    data: {
+        labels: [{% for k in exp_order %}'{{ experiments[k].short }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [
+            {
+                label: 'Faux Positifs (fausses alertes)',
+                data: [{% for k in exp_order %}{{ experiments[k].metrics.fp }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+            },
+            {
+                label: 'Faux Négatifs (phishing manqué)',
+                data: [{% for k in exp_order %}{{ experiments[k].metrics.fn }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: 'rgba(255, 193, 7, 0.7)',
+            },
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+</script>
+{% endblock %}
