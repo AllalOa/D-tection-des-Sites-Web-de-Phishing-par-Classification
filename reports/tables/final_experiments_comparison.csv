@@ -1,0 +1,29 @@
+Metric,Experience_A (FULL_FEATURES),Experience_B (URL_PAGE),Experience_Bprime (PURIFIED_CONTENT),Experience_C (URL_ONLY),Experience_D (HOST_ONLY),Commentaire
+Nombre de caracteristiques,50 numeriques + 1 TLD (51 colonnes),44 numeriques + 1 TLD (45 colonnes),38 numeriques (38 colonnes sans TLD*),18 numeriques,10 numeriques,"A: 50 brut ; B: sans 6 DERIVED ; Bprime: sans DERIVED, sans 6 URL non reproductibles et sans TLD (*deviation train.py) ; C: 18 URL recalculees ; D: 10 Host recalculees"
+Nature des caracteristiques,Precollectees (URL + Page + Reseau + Derivees),"Precollectees (URL + Page + Reseau, sans Derivees)","Precollectees (12 URL + 26 Page, sans Derivees ni URL bruit)",Recalculees statiques (chaine URL complete),Recalculees statiques (nom d hote seul),A B et Bprime necessitent un crawl HTTP/DOM distant ; C et D fonctionnent a 100% hors ligne
+Origine des donnees,PhiUSIIL brut (CSV),PhiUSIIL brut (CSV),PhiUSIIL brut (CSV),data/processed/url_features_all.csv,data/processed/host_features_all.csv,A B Bprime issues du CSV original ; C et D issues du code d extraction Python deterministe
+Modele selectionne,RandomForest,RandomForest,RandomForest,RandomForest,RandomForest,RandomForest selectionne dans les 5 experiences selon la moyenne d Average Precision en GroupKFold sur Train
+Hyperparametres retenus,"max_depth=None, n_estimators=100","max_depth=None, n_estimators=200","max_depth=20, n_estimators=200","max_depth=20, n_estimators=200","max_depth=20, n_estimators=200",Grille exploree : max_depth in [5, 10, 20, None], n_estimators in [100, 200]
+Train CV AP (PR-AUC),1.0000000000 +/- 0.0000000000,0.9999990248 +/- 0.0000007948,0.9999941152 +/- 0.0000058232,0.9980567616 +/- 0.0001585969,0.8544115365 +/- 0.0069419419,Métrique principale d optimisation (GroupKFold 5 plis par Host sur 188 492 obs)
+Train CV ROC-AUC,1.0000000000 +/- 0.0000000000,0.9999992907 +/- 0.0000005725,0.9999953282 +/- 0.0000048431,0.9975248809 +/- 0.0002148100,0.8418620275 +/- 0.0047120300,Moyenne sur les 5 plis de validation croisee
+Train CV F1-score,0.9999752512 +/- 0.0000228410,0.9997954670 +/- 0.0000608672,0.9994173675 +/- 0.0001186145,0.9940518443 +/- 0.0004112000,0.7302971575 +/- 0.0184120000,Au seuil standard de decision 0.5
+Temps entrainement RF,356.42 s,558.29 s,323.14 s,223.93 s,env. 210 s,"GridSearchCV (4 combinaisons, 5 plis = 20 ajustements par experience)"
+Test PR-AUC,1.00000000,0.99999998,0.99999618,0.99791592,0.85852242,Evaluation finale unique sur 46 878 obs
+Test ROC-AUC,1.00000000,0.99999998,0.99999715,0.99738984,0.84733928,Evaluation finale unique sur 46 878 obs
+Test Seuil figé,0.5,0.5,0.5,0.5,0.5,Seuil standard de probabilite 0.5 fige avant consultation du Test
+Test Precision (recalculee),1.00000000,0.99989912,0.99934439,0.99685263,0.88446718,Calcul arithmetique : TP / (TP + FP)
+Test Recall (recalcule),1.00000000,0.99989912,0.99949561,0.99046706,0.63673963,Calcul arithmetique : TP / (TP + FN)
+Test F1-score (recalcule),1.00000000,0.99989912,0.99942000,0.99364959,0.74043227,Calcul arithmetique : 2 * P * R / (P + R)
+Vrais Positifs (TP),19826,19824,19816,19637,12624,Phishing reellement detecte comme phishing
+Faux Positifs (FP),0,2,13,62,1649,Fausse alerte (site legitime classe comme phishing)
+Vrais Negatifs (TN),27052,27050,27039,26990,25403,Site legitime correctement reconnu
+Faux Negatifs (FN),0,2,10,189,7202,Danger critique (site de phishing non detecte)
+Total Test,46878,46878,46878,46878,46878,Verification arithmetique TP + FP + TN + FN = 46 878
+G1 PR-AUC [IC 95%],"1.0000 [1.0000, 1.0000]","1.0000 [1.0000, 1.0000]","0.9983 [0.9951, 0.9999]","0.8426 [0.8069, 0.8724]","0.2727 [0.2231, 0.3302]","Sous-groupe G1: 27 521 obs, dont 469 phishing (prevalence 1.70%)"
+G1 ROC-AUC [IC 95%],"1.0000 [1.0000, 1.0000]","1.0000 [1.0000, 1.0000]","0.9999 [0.9998, 1.0000]","0.9368 [0.9187, 0.9533]","0.7250 [0.6873, 0.7603]",Bootstrap clusterise sur Host (1000 tirages)
+G1 FP / FN (seuil 0.5),FP=0 / FN=0,FP=2 / FN=0,FP=13 / FN=3,FP=62 / FN=86,FP=1649 / FN=286,Erreurs au seuil standard sur G1
+G2 PR-AUC [IC 95%],"1.0000 [1.0000, 1.0000]","1.0000 [0.9998, 1.0000]","0.9998 [0.9992, 1.0000]","0.5521 [0.4823, 0.6213]","0.2254 [0.1624, 0.2958]","Sous-groupe G2: 27 252 obs, dont 200 phishing (prevalence 0.73%)"
+G2 ROC-AUC [IC 95%],"1.0000 [1.0000, 1.0000]","1.0000 [1.0000, 1.0000]","1.0000 [1.0000, 1.0000]","0.8517 [0.8124, 0.8861]","0.7657 [0.7252, 0.8064]",Bootstrap clusterise sur Host (1000 tirages)
+G2 FP / FN (seuil 0.5),FP=0 / FN=0,FP=2 / FN=0,FP=13 / FN=0,FP=62 / FN=86,FP=1649 / FN=108,Erreurs au seuil standard sur G2 (G2 inclus dans G1)
+Capacite de prediction sans reseau,Non (crawl web HTTP/DOM obligatoire),Non (crawl web HTTP/DOM obligatoire),Non (crawl web HTTP/DOM obligatoire),Oui (chaine URL seule sans appel reseau),Oui (nom d hote seul sans appel reseau),C et D s executent en temps reel direct (< 1 ms local)
+Limites de deploiement,Vulnerabilite au cloaking / latence reseau estimee (0.5s - 5s) / sites hors-ligne / fuite de variables derivees,Vulnerabilite au cloaking / latence reseau / sites hors-ligne / variables URL brutes non reproductibles,Vulnerabilite au cloaking / latence reseau / sites hors-ligne / B et Bprime different de 7 entrees (effet confondu),Chute de precision sur URLs minimales HTTPS sans chemin (G2),Taux de faux negatifs inacceptable (FN=7202) pour un usage autonome

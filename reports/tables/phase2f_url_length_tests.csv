@@ -1,0 +1,6 @@
+test,agreement_pct,mismatches,total_rows
+len(URL.rstrip('/')) == URLLength,16.2841,197042,235370
+len(s) [a_schema_seul] == URLLength,0.0,235370,235370
+len(s) [b_schema_www_init] == URLLength,0.0,235370,235370
+len(s) [c_schema_tout_www] == URLLength,0.0,235370,235370
+len(s) [d_c_plus_slash_final] == URLLength,0.0,235370,235370

@@ -1,0 +1,10 @@
+group,feature,n_total,acc_global,mismatches_total,n_leg,acc_leg,mismatches_leg,n_phi,acc_phi,mismatches_phi
+"Stratifié g in {-1, 0}",NoOfLettersInURL,235368,0.9978374290472791,509,134850,1.0,0,100518,0.9949362303269066,509
+"Stratifié g in {-1, 0}",NoOfDegitsInURL,235368,1.0,0,134850,1.0,0,100518,1.0,0
+"Stratifié g in {-1, 0}",NoOfEqualsInURL,235368,1.0,0,134850,1.0,0,100518,1.0,0
+"Stratifié g in {-1, 0}",NoOfQMarkInURL,235368,1.0,0,134850,1.0,0,100518,1.0,0
+"Stratifié g in {-1, 0}",NoOfAmpersandInURL,235368,0.9865742156962714,3160,134850,1.0,0,100518,0.9685628444656679,3160
+"Stratifié g in {-1, 0}",NoOfOtherSpecialCharsInURL,235368,0.9863660310662452,3209,134850,1.0,0,100518,0.9680753695855469,3209
+"Stratifié g in {-1, 0}",LetterRatioInURL,235368,0.9978374290472791,509,134850,1.0,0,100518,0.9949362303269066,509
+"Stratifié g in {-1, 0}",DegitRatioInURL,235368,1.0,0,134850,1.0,0,100518,1.0,0
+"Stratifié g in {-1, 0}",SpacialCharRatioInURL,235368,0.9978416777131981,508,134850,1.0,0,100518,0.9949461787938478,508

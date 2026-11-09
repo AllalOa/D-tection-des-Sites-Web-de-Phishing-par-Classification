@@ -1,0 +1,5 @@
+Composant URL,Legitime_Count,Legitime_Pct,Phishing_Count,Phishing_Pct
+Chemin non vide (path != '' and path != '/'),0,0.0,27280,27.138877835256665
+URL se terminant par /,0,0.0,36524,36.3350576999602
+Paramètre de requête (?),0,0.0,6134,6.1022682053322725
+Fragment d'ancre (#),0,0.0,869,0.8645045762037405

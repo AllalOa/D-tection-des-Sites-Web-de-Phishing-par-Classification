@@ -1,0 +1,5 @@
+metric,value
+raw_total_rows,235795
+raw_unique_urls,235370
+duplicate_url_rows,425
+deduplicated_rows,235370

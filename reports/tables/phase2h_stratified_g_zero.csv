@@ -1,0 +1,10 @@
+group,feature,n_total,acc_global,mismatches_total,n_leg,acc_leg,mismatches_leg,n_phi,acc_phi,mismatches_phi
+g = 0 (s complet),NoOfLettersInURL,48428,0.9911001899727431,431,0,0.0,0,48428,0.9911001899727431,431
+g = 0 (s complet),NoOfDegitsInURL,48428,1.0,0,0,0.0,0,48428,1.0,0
+g = 0 (s complet),NoOfEqualsInURL,48428,1.0,0,0,0.0,0,48428,1.0,0
+g = 0 (s complet),NoOfQMarkInURL,48428,1.0,0,0,0.0,0,48428,1.0,0
+g = 0 (s complet),NoOfAmpersandInURL,48428,0.9523829189724953,2306,0,0.0,0,48428,0.9523829189724953,2306
+g = 0 (s complet),NoOfOtherSpecialCharsInURL,48428,0.9518873379036921,2330,0,0.0,0,48428,0.9518873379036921,2330
+g = 0 (s complet),LetterRatioInURL,48428,0.9911001899727431,431,0,0.0,0,48428,0.9911001899727431,431
+g = 0 (s complet),DegitRatioInURL,48428,1.0,0,0,0.0,0,48428,1.0,0
+g = 0 (s complet),SpacialCharRatioInURL,48428,0.9911208391839432,430,0,0.0,0,48428,0.9911208391839432,430

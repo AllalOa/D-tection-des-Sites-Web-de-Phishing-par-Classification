@@ -1,0 +1,6 @@
+prefix_type,Légitime (0),Phishing (1),Total
+http:// (sans www),0,12360,12360
+http://www.,0,39275,39275
+https:// (sans www),0,46440,46440
+https://www.,134850,2445,137295
+All,134850,100520,235370

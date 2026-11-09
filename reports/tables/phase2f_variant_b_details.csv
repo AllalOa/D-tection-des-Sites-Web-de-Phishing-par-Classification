@@ -1,0 +1,10 @@
+feature,global_agreement_pct,mismatches_total,legitimate_agreement_pct,mismatches_legitimate,phishing_agreement_pct,mismatches_phishing
+NoOfLettersInURL,26.622,172710,0.0,134850,62.336,37860
+NoOfDegitsInURL,99.486,1210,100.0,0,98.796,1210
+NoOfEqualsInURL,99.894,249,100.0,0,99.752,249
+NoOfQMarkInURL,99.995,12,100.0,0,99.988,12
+NoOfAmpersandInURL,98.655,3165,100.0,0,96.851,3165
+NoOfOtherSpecialCharsInURL,92.989,16501,99.997,4,83.588,16497
+LetterRatioInURL,26.675,172584,0.0,134850,62.461,37734
+DegitRatioInURL,99.506,1163,100.0,0,98.843,1163
+SpacialCharRatioInURL,93.998,14128,99.997,4,85.949,14124

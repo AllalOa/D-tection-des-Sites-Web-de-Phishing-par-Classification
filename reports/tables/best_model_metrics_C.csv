@@ -1,0 +1,2 @@
+threshold,precision,recall,f1,roc_auc,pr_auc,TP,FP,TN,FN,FN_note,FP_note,experiment,model
+0.5,0.9968526321133052,0.9904670634520327,0.9936495888678052,0.9973898405929008,0.9979159151976198,19637,62,26990,189,Phishing classé comme légitime (dangereux),Légitime classé comme phishing (faux alarme),C,RandomForest
