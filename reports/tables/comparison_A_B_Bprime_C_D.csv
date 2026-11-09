@@ -1,0 +1,24 @@
+Metric,Experience_A (FULL_FEATURES),Experience_B (44_FEATURES),Experience_Bprime (38_FEATURES),Experience_C (URL_ONLY),Experience_D (HOST_ONLY),Commentaire
+Nombre de caracteristiques,50 numeriques + 1 TLD (51 colonnes),44 numeriques + 1 TLD (45 colonnes),38 numeriques + 1 TLD (39 colonnes),18,10,A a toutes les 50 vars ; B exclut les 6 DERIVED ; Bprime exclut aussi les 6 URL non reproductibles ; C n a que l URL recalculee ; D n a que l hote
+Nature des caracteristiques,Precollectees (URL + Page + Reseau + Derivees),"Precollectees (URL + Page + Reseau, sans Derivees)","Precollectees (12 URL + 26 Page, sans Derivees ni URL bruit)",Recalculees statiques (chaine URL complete),Recalculees statiques (nom d hote seul),A B et Bprime necessitent un crawl HTTP/DOM ; C et D fonctionnent a 100% hors ligne
+Meilleur modele CV,"RandomForest (max_depth=None, n_est=100)","RandomForest (max_depth=None, n_est=200)","RandomForest (max_depth=20, n_est=200)","RandomForest (max_depth=20, n_est=200)","RandomForest (max_depth=20, n_est=200)",RandomForest selectionne dans les 5 experiences par Average Precision en GroupKFold sur Train
+Train CV AP (PR-AUC),1.0000 +/- 0.0000,1.0000 +/- 0.0000 (0.999999),0.999994 +/- 0.000006,0.9981 +/- 0.0002,0.8544 +/- 0.0069,Metrique de refit principale (GroupKFold 5 plis par Host sur 188 492 obs)
+Train CV ROC-AUC,1.0000 +/- 0.0000,1.0000 +/- 0.0000 (0.999999),0.999995 +/- 0.000005,0.9975 +/- 0.0002,0.8419 +/- 0.0047,GroupKFold par Host sur 188 492 obs
+Train CV F1-score,0.999975 +/- 0.000023,0.999795 +/- 0.000061,0.999417 +/- 0.000119,0.9941 +/- 0.0004,0.7303 +/- 0.0184,Au seuil standard 0.5
+Train CV Precision,1.0000 +/- 0.0000,0.999901 +/- 0.000050,0.999641 +/- 0.000099,0.9971 +/- 0.0003,0.8879 +/- 0.0048,Au seuil standard 0.5
+Train CV Recall,0.999951 +/- 0.000046,0.999690 +/- 0.000147,0.999194 +/- 0.000246,0.9910 +/- 0.0006,0.6206 +/- 0.0252,Au seuil standard 0.5
+Temps entrainement RF,356.4 s,558.3 s,323.1 s,223.9 s,env. 210 s,"GridSearchCV (4 combinaisons, 5 plis = 20 fits)"
+Test PR-AUC,1.0000,1.0000 (0.99999998),0.999996,0.9979,0.8585,Evaluation finale unique sur 46 878 obs
+Test ROC-AUC,1.0000,1.0000 (0.99999998),0.999997,0.9974,0.8473,Evaluation finale unique sur 46 878 obs
+Test Precision (seuil 0.5),1.0000,0.9999 (0.999899),0.999344,0.9969,0.8845,Au seuil standard 0.5
+Test Recall (seuil 0.5),1.0000,0.9999 (0.999899),0.999496,0.9905,0.6367,Au seuil standard 0.5
+Test F1-score (seuil 0.5),1.0000,0.9999 (0.999899),0.999420,0.9936,0.7404,Au seuil standard 0.5
+Test Faux Positifs (FP),0,2,13,62,1649,Fausse alerte (legitime classe phishing)
+Test Faux Negatifs (FN),0,2,10,189,7202,Danger majeur (phishing non detecte)
+G1 PR-AUC [IC 95%],"1.0000 [1.0000, 1.0000]","1.0000 [1.0000, 1.0000]","0.9983 [0.9951, 0.9999]","0.8426 [0.8069, 0.8724]","0.2727 [0.2231, 0.3302]","Sous-groupe G1: 27 521 obs, dont 469 phishing"
+G1 ROC-AUC [IC 95%],"1.0000 [1.0000, 1.0000]","1.0000 [1.0000, 1.0000]","0.9999 [0.9998, 1.0000]","0.9368 [0.9187, 0.9533]","0.7250 [0.6873, 0.7603]","Sous-groupe G1 (bootstrap clusterise sur Host, 1000 tirs)"
+G1 FP / FN (seuil 0.5),FP=0 / FN=0,FP=2 / FN=0,FP=13 / FN=3,FP=62 / FN=86,FP=1649 / FN=286,Erreurs au seuil standard sur G1
+G2 PR-AUC [IC 95%],"1.0000 [1.0000, 1.0000]","1.0000 [0.9998, 1.0000]","0.9998 [0.9992, 1.0000]","0.5521 [0.4823, 0.6213]","0.2254 [0.1624, 0.2958]","Sous-groupe G2: 27 252 obs, dont 200 phishing"
+G2 ROC-AUC [IC 95%],"1.0000 [1.0000, 1.0000]","1.0000 [1.0000, 1.0000]","1.0000 [1.0000, 1.0000]","0.8517 [0.8124, 0.8861]","0.7657 [0.7252, 0.8064]","Sous-groupe G2 (bootstrap clusterise sur Host, 1000 tirs)"
+G2 FP / FN (seuil 0.5),FP=0 / FN=0,FP=2 / FN=0,FP=13 / FN=0,FP=62 / FN=86,FP=1649 / FN=108,Erreurs au seuil standard sur G2
+Deploiement autonome hors ligne,Non (crawl web requis),Non (crawl web requis),Non (crawl web requis),Oui (chaine URL seule),Oui (nom d hote seul),A B et Bprime necessitent une infrastructure de capture de contenu web distant

@@ -1,0 +1,10 @@
+feature,a_schema_seul_acc_pct,a_schema_seul_mismatches,b_schema_www_init_acc_pct,b_schema_www_init_mismatches,c_schema_tout_www_acc_pct,c_schema_tout_www_mismatches,d_c_plus_slash_final_acc_pct,d_c_plus_slash_final_mismatches
+NoOfLettersInURL,21.62,184479,26.62,172710,26.65,172644,26.65,172644
+NoOfDegitsInURL,99.49,1210,99.49,1210,99.49,1210,99.49,1210
+NoOfEqualsInURL,99.89,249,99.89,249,99.89,249,99.89,249
+NoOfQMarkInURL,99.99,12,99.99,12,99.99,12,99.99,12
+NoOfAmpersandInURL,98.66,3165,98.66,3165,98.66,3165,98.66,3165
+NoOfOtherSpecialCharsInURL,18.4,192053,92.99,16501,93.03,16415,88.75,26490
+LetterRatioInURL,21.69,184330,26.68,172584,26.7,172518,26.7,172518
+DegitRatioInURL,99.51,1163,99.51,1163,99.51,1163,99.51,1163
+SpacialCharRatioInURL,19.33,189883,94.0,14128,94.04,14032,89.75,24123

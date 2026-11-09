@@ -1,0 +1,11 @@
+prefix,Legitimate,Phishing,All,split
+http://,0,10046,10046,Train
+http://www.,0,31359,31359,Train
+https://.,0,37416,37416,Train
+https://www.,107927,1990,109917,Train
+All,107927,80811,188738,Train
+http://,0,2314,2314,Test
+http://www.,0,7916,7916,Test
+https://.,0,9024,9024,Test
+https://www.,26923,455,27378,Test
+All,26923,19709,46632,Test

@@ -1,0 +1,10 @@
+Paramètre,Valeur
+Fichier source,PhiUSIIL_Phishing_URL_Dataset.csv
+Lignes brutes,235795
+Lignes dédupliquées,235370
+Colonnes totales,56
+Valeurs manquantes totales,0
+Nombre d'hôtes distincts,219094
+URLs Légitimes (phishing=0),134850 (57.29 %)
+URLs Phishing (phishing=1),100520 (42.71 %)
+Ratio de déséquilibre,1.34 : 1

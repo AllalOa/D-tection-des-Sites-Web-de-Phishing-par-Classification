@@ -1,0 +1,3 @@
+subset,total,TP,FP,FN,TN,accuracy,precision,recall,f1_score
+Jeu Dédupliqué Complet,235370,98075,0,2445,134850,0.9896,1.0,0.9757,0.9877
+Test Split,46632,19254,0,455,26923,0.9902,1.0,0.9769,0.9883

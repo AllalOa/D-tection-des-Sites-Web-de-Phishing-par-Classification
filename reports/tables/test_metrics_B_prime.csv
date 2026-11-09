@@ -1,0 +1,9 @@
+threshold,precision,recall,f1,roc_auc,pr_auc,TP,FP,TN,FN,FN_note,FP_note,model,experiment
+0.5,0.9993443945736044,0.9994956118228588,0.9994199974782499,0.9999971491589426,0.9999961754857354,19816,13,27039,10,Phishing classé comme légitime (dangereux),Légitime classé comme phishing (faux alarme),RandomForest,B_prime
+0.5,0.998084387760246,0.998638151921719,0.9983611930514585,0.9999873902955715,0.9999829766527154,19799,38,27014,27,Phishing classé comme légitime (dangereux),Légitime classé comme phishing (faux alarme),LogisticRegression,B_prime
+0.5,0.9976261427344816,0.9962675274891557,0.9969463722397476,0.9984245271582716,0.9972291368078051,19752,47,27005,74,Phishing classé comme légitime (dangereux),Légitime classé comme phishing (faux alarme),DecisionTree,B_prime
+0.5,0.9982773471145564,0.9937960254211641,0.9960316457295958,0.9997234618916347,0.9996071116675231,19703,34,27018,123,Phishing classé comme légitime (dangereux),Légitime classé comme phishing (faux alarme),KNN,B_prime
+0.0,0.9980834215968124,0.9981337637445779,0.9981085920359115,0.999986596012844,0.9999819174049922,19789,38,27014,37,Phishing classé comme légitime (dangereux),Légitime classé comme phishing (faux alarme),LinearSVC,B_prime
+0.5,0.9990419040895567,0.9992938565520024,0.999167864437552,0.9999954934710035,0.9999941048190958,19812,19,27033,14,Phishing classé comme légitime (dangereux),Légitime classé comme phishing (faux alarme),SVC_RBF,B_prime
+0.5,0.0,0.0,0.0,0.5,0.42292759930031143,0,0,27052,19826,Phishing classé comme légitime (dangereux),Légitime classé comme phishing (faux alarme),DummyClassifier,B_prime
+N/A,1.0,0.9763441944920811,0.9880305234412883,0.9881720972460406,0.9863488875250603,19357,0,27052,469,,,PrefixRule,B_prime

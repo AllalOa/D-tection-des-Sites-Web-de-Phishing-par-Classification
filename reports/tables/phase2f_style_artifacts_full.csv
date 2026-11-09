@@ -1,0 +1,9 @@
+artifact,legitimate_true_count,legitimate_true_pct,phishing_true_count,phishing_true_pct,total_true_count,total_true_pct
+has_nonempty_path,0,0.0,27284,27.14,27284,11.59
+ends_with_slash,0,0.0,36524,36.34,36524,15.52
+has_query,0,0.0,6134,6.1,6134,2.61
+has_fragment,0,0.0,869,0.86,869,0.37
+has_ip_host,0,0.0,606,0.6,606,0.26
+has_uppercase,0,0.0,0,0.0,0,0.0
+has_port,0,0.0,26,0.03,26,0.01
+has_at,0,0.0,1506,1.5,1506,0.64

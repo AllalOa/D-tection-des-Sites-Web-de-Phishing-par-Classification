@@ -1,0 +1,8 @@
+Métrique,Valeur
+Total hôtes distincts,219094
+Hôtes exclusifs Légitimes,134792
+Hôtes exclusifs Phishing,84244
+Hôtes partagés entre classes (ambigus),58
+URLs associées aux hôtes partagés,159
+Ratio URLs / Hôte en Légitime,1.0000
+Ratio URLs / Hôte en Phishing,1.1924

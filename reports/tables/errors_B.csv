@@ -1,0 +1,5 @@
+URL,Domain,TLD,y_true,y_pred,model_score,error_type
+https://binarypiano.com/,binarypiano.com,com,1,0,0.48,FN (phishing manqué)
+https://www.stiftung-20-juli-1944.de,www.stiftung-20-juli-1944.de,de,0,1,0.535,FP (faux alarme)
+https://www.michaelrademacher-gitarre.de,www.michaelrademacher-gitarre.de,de,0,1,0.505,FP (faux alarme)
+https://qsvk6n.webwave.dev/,qsvk6n.webwave.dev,dev,1,0,0.435,FN (phishing manqué)
