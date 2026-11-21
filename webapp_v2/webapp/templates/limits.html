@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Biais &amp; limites{% endblock %}
+
+{% block content %}
+<h2 class="section-title"><i class="bi bi-exclamation-diamond me-2"></i>Biais du jeu de données et limites</h2>
+<p class="text-muted">Les scores très élevés sont à replacer dans le contexte d'un benchmark académique comportant des raccourcis statistiques.
+Cette page résume l'audit réalisé (documentation technique §7 et §11 ; <code>docs/LIMITATIONS.md</code>).</p>
+
+<!-- ── 7.1 Préfixe ─────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="chart-container h-100">
+            <h5 class="fw-bold mb-1"><i class="bi bi-link-45deg me-2"></i>Biais du préfixe « https://www. »</h5>
+            <p class="small text-muted mb-3">Part de chaque classe par préfixe d'URL (en %). Source : documentation §7.1.</p>
+            <div class="chart-box"><canvas id="prefixChart" role="img"
+                 aria-label="100 % des URLs légitimes commencent par https://www., contre 2,4 % des phishing"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card kpi-card h-100">
+            <div class="card-header bg-transparent fw-bold"><i class="bi bi-flag me-2"></i>Références sans apprentissage — expérience C</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light"><tr><th>Modèle</th><th class="text-end">Précision</th><th class="text-end">Rappel</th><th class="text-end">F1</th><th class="text-end">PR-AUC</th></tr></thead>
+                    <tbody>
+                    {% for name, p, r, f, a in baselines %}
+                        <tr><td>{{ name }}</td><td class="text-end">{{ p | fmt4 }}</td><td class="text-end">{{ r | fmt4 }}</td>
+                            <td class="text-end fw-bold">{{ f | fmt4 }}</td><td class="text-end">{{ a | fmt4 }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                <p class="small text-muted p-3 mb-0">
+                    100 % des {{ dataset.n_legitimate | fmt_int }} URLs légitimes commencent par <code>https://www.</code> (ni chemin, ni paramètre,
+                    ni port, ni IP), contre 2,36 % des phishing. La règle « tout ce qui ne commence pas par https://www. est du phishing »
+                    atteint déjà F1 = 0,9880 : l'apport mesuré de l'apprentissage est d'environ 0,6 point de F1 (0,9936 contre 0,9880).
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 7.3 G1 / G2 ─────────────────────────────────────────────── -->
+<h3 class="section-title"><i class="bi bi-people me-2"></i>Sous-groupes structurels G1 et G2</h3>
+<p class="text-muted">
+    <strong>G1</strong> : URLs commençant par <code>https://www.</code> (27 521 obs. de test, 469 phishing, prévalence 1,70 %).
+    <strong>G2 ⊂ G1</strong> : sans chemin, requête ni fragment (27 252 obs., 200 phishing, 0,73 %).
+    Ces sous-groupes mesurent la capacité à détecter un phishing dont l'URL <em>ressemble</em> à celle d'un site légitime.
+</p>
+<div class="card kpi-card mb-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr><th>Expérience</th><th class="text-center">G1 PR-AUC [IC 95 %]</th><th class="text-center">G2 PR-AUC [IC 95 %]</th><th class="text-center">G2 FP / FN</th></tr>
+                </thead>
+                <tbody>
+                {% for tag, g1, g1ci, g2, g2ci, fp, fn in subgroups %}
+                    <tr {% if tag == 'C' %}class="table-success"{% endif %}>
+                        <td><span class="exp-badge" style="background-color:{{ experiments[tag].color }};color:#06101c">{{ experiments[tag].short }}</span></td>
+                        <td class="text-center">{{ g1 | fmt4 }} <small class="text-muted">[{{ g1ci[0] | fmt4 }} ; {{ g1ci[1] | fmt4 }}]</small></td>
+                        <td class="text-center fw-bold">{{ g2 | fmt4 }} <small class="text-muted fw-normal">[{{ g2ci[0] | fmt4 }} ; {{ g2ci[1] | fmt4 }}]</small></td>
+                        <td class="text-center">{{ fp | fmt_int }} / {{ fn | fmt_int }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer small text-muted">Source : documentation §7.3 (jeu de test indépendant). Les tables détaillées de chaque expérience sont dans « Évaluation détaillée ».</div>
+</div>
+<div class="alert alert-info">
+    <i class="bi bi-lightbulb me-2"></i><strong>Interprétation.</strong>
+    Le modèle C s'effondre sur G2 (PR-AUC = 0,55) : une URL nue comme <code>https://www.service-login.com/</code> n'offre presque aucun indice lexical
+    hors du nom de domaine. Les modèles exploitant le contenu de la page (B, B′) conservent une PR-AUC &gt; 0,998.
+    C'est pourquoi l'outil « Tester le modèle » signale ce cas.
+</div>
+
+<!-- ── 7.2 / 11 Limites ────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card kpi-card h-100">
+            <div class="card-header bg-transparent fw-bold"><i class="bi bi-bug me-2"></i>Autres artefacts du jeu de données</div>
+            <div class="card-body">
+                <ul class="limit-list">
+                    <li><strong>Décalage sur <code>URLLength</code> :</strong> URLLength(CSV) − len(URL) = −1 pour 100 % des légitimes et 51,8 % des phishing ; variable exclue de B′.</li>
+                    <li><strong>Six variables d'URL non reproductibles</strong> (URLLength, NoOfLettersInURL, LetterRatioInURL, DegitRatioInURL, NoOfOtherSpecialCharsInURL, SpacialCharRatioInURL) : définitions d'origine inconnues.</li>
+                    <li><strong>Sous-domaines :</strong> le comptage naïf (étiquettes − 2) ignore la liste des suffixes publics (ex. <code>bbc.co.uk</code>).</li>
+                    <li><strong>Unicité des hôtes légitimes :</strong> chaque hôte légitime n'apparaît qu'une fois (ratio 1,0) contre 1,19 URL par hôte en phishing.</li>
+                    <li><strong>Variables de page :</strong> supposent un site encore en ligne et sans masquage (cloaking).</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card kpi-card h-100">
+            <div class="card-header bg-transparent fw-bold"><i class="bi bi-shield-exclamation me-2"></i>Limites de l'étude</div>
+            <div class="card-body">
+                <ul class="limit-list">
+                    <li><strong>Représentativité :</strong> un découpage par hôte supprime la fuite interne mais pas la dérive temporelle ; des AP &gt; 0,999 ne préjugent pas des performances sur du trafic réel.</li>
+                    <li><strong>Comparaisons non causales :</strong> B/B′ et B′/C ne sont pas des ablations contrôlées (déviation documentée en phase 8a-bis : B′ entraîné sans TLD).</li>
+                    <li><strong>Score non calibré :</strong> les scores d'une forêt aléatoire ne sont pas des probabilités ; un étalonnage (Platt, isotonique) serait nécessaire pour fixer des seuils métier.</li>
+                    <li><strong>Prédiction interactive :</strong> limitée aux expériences C et D, seules calculables sans accès à la page.</li>
+                    <li><strong>Cascade C → B′ :</strong> proposition conceptuelle, <em>non validée expérimentalement</em>.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PB = {{ prefix_bias | tojson }};
+new Chart(document.getElementById('prefixChart'), {
+    type: 'bar',
+    data: {
+        labels: PB.labels,
+        datasets: [
+            { label: 'Légitime', data: PB.legitimate, backgroundColor: 'rgba(52,224,161,.8)' },
+            { label: 'Phishing', data: PB.phishing,   backgroundColor: 'rgba(255,77,109,.8)' },
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { min: 0, max: 100, ticks: { callback: v => v + ' %' } } },
+        plugins: { legend: { position: 'bottom' },
+                   tooltip: { callbacks: { label: c => c.dataset.label + ' : ' + c.raw + ' %' } } }
+    }
+});
+</script>
+{% endblock %}

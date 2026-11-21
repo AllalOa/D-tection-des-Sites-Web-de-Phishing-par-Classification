@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{% set C = experiments['C'] %}
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<div class="hero text-center px-4">
+    <h1><i class="bi bi-shield-lock-fill me-2"></i>Détection de Phishing</h1>
+    <p class="lead mb-1">Pipeline ML complet (CRISP-DM) — Classification supervisée</p>
+    <p class="mb-0 opacity-75">
+        Dataset PhiUSIIL · {{ dataset.total_rows | fmt_int }} URLs dédoublonnées · {{ dataset.total_cols }} colonnes
+    </p>
+</div>
+
+<!-- ── KPI Row ──────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="card kpi-card position-relative h-100">
+            <i class="bi bi-database kpi-icon"></i>
+            <div class="card-body">
+                <div class="kpi-value text-primary">{{ dataset.total_rows | fmt_int }}</div>
+                <div class="kpi-label">URLs (après dédoublonnage)</div>
+                <small class="text-muted">{{ dataset.raw_rows | fmt_int }} brutes − {{ dataset.duplicates_removed }} doublons</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card kpi-card position-relative h-100">
+            <i class="bi bi-flask kpi-icon"></i>
+            <div class="card-body">
+                <div class="kpi-value text-info">{{ exp_order | length }}</div>
+                <div class="kpi-label">Expériences (A/B/B′/C/D)</div>
+                <small class="text-muted">8 modèles candidats par expérience</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card kpi-card position-relative h-100">
+            <i class="bi bi-trophy kpi-icon"></i>
+            <div class="card-body">
+                <div class="kpi-value text-success">{{ C.metrics.f1 | pct }}</div>
+                <div class="kpi-label">F1 · modèle déployable (C)</div>
+                <small class="text-muted">{{ C.n_errors | fmt_int }} erreurs sur {{ 46878 | fmt_int }} (test)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <a class="text-decoration-none" href="{{ url_for('limits') }}">
+        <div class="card kpi-card position-relative h-100">
+            <i class="bi bi-exclamation-diamond kpi-icon"></i>
+            <div class="card-body">
+                <div class="kpi-value text-warning">{{ baselines[1][3] | pct }}</div>
+                <div class="kpi-label">F1 · simple règle de préfixe</div>
+                <small class="text-muted">sans apprentissage — voir « Biais &amp; limites »</small>
+            </div>
+        </div>
+        </a>
+    </div>
+</div>
+
+<div class="alert alert-info small d-flex gap-2 align-items-start" role="note">
+    <i class="bi bi-lightbulb-fill mt-1"></i>
+    <div>
+        <strong>Lecture prudente des scores.</strong>
+        Dans ce corpus, 100&nbsp;% des URLs légitimes commencent par <code>https://www.</code> contre 2,4&nbsp;% des phishing :
+        une règle triviale atteint déjà F1&nbsp;=&nbsp;{{ baselines[1][3] | fmt4 }}. Sur les URLs nues de ce type (sous-groupe G2),
+        le modèle C ne dépasse pas PR-AUC&nbsp;=&nbsp;0,55. <a href="{{ url_for('limits') }}">Détails et méthode →</a>
+    </div>
+</div>
+
+<!-- ── Experiments Summary Row ──────────────────────────────────── -->
+<h3 class="section-title"><i class="bi bi-bar-chart-line me-2"></i>Résumé des Expériences</h3>
+
+<div class="row g-3 mb-4">
+{% for key in exp_order %}
+{% set exp = experiments[key] %}
+    <div class="col-lg col-md-6">
+        <div class="card exp-card exp-{{ exp.tag }} h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">{{ exp.short }}</h5>
+                    {% if not exp.needs_network %}
+                    <span class="badge bg-success"><i class="bi bi-wifi-off me-1"></i>Hors ligne</span>
+                    {% else %}
+                    <span class="badge bg-secondary"><i class="bi bi-globe me-1"></i>Page requise</span>
+                    {% endif %}
+                </div>
+                <p class="text-muted small mb-3">{{ exp.description }}</p>
+
+                <div class="row text-center g-2">
+                    <div class="col-6">
+                        <div class="fw-bold fs-5" style="color: {{ exp.color }}">{{ exp.metrics.f1 | pct }}</div>
+                        <small class="text-muted">F1-Score</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="fw-bold fs-5" style="color: {{ exp.color }}">{{ exp.metrics.pr_auc | fmt4 }}</div>
+                        <small class="text-muted">PR-AUC</small>
+                    </div>
+                </div>
+
+                <hr class="my-2">
+                <div class="d-flex justify-content-between small text-muted">
+                    <span><i class="bi bi-columns-gap me-1"></i>{{ exp.n_features }} variables</span>
+                    <span><i class="bi bi-tree me-1"></i>{{ exp.best_model }}</span>
+                </div>
+
+                <a href="{{ url_for('evaluation', experiment=key) }}" class="stretched-link"
+                   aria-label="Évaluation détaillée de {{ exp.short }}"></a>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+
+<!-- ── Charts ──────────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="chart-container">
+            <h5 class="fw-bold mb-1"><i class="bi bi-graph-up me-2"></i>Comparaison des performances (test)</h5>
+            <p class="small text-muted mb-3">Axe vertical tronqué à 50 % pour rendre les écarts lisibles.</p>
+            <div class="chart-box"><canvas id="comparisonChart" role="img"
+                 aria-label="Histogramme PR-AUC, F1, précision et rappel pour les cinq expériences"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="chart-container h-100">
+            <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart me-2"></i>Répartition des classes</h5>
+            <div class="chart-box chart-box-sm"><canvas id="datasetChart" role="img"
+                 aria-label="Répartition légitime / phishing"></canvas></div>
+            <div class="mt-3 small text-muted text-center">
+                <p class="mb-1"><strong>Entraînement :</strong> {{ dataset.train_size | fmt_int }} (80 %)</p>
+                <p class="mb-1"><strong>Test indépendant :</strong> {{ dataset.test_size | fmt_int }} (20 %)</p>
+                <p class="mb-0"><strong>Découpage :</strong> GroupShuffleSplit par hôte — 0 hôte commun</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Methodology ─────────────────────────────────────────────── -->
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card kpi-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-shield-check text-success" style="font-size:2.5rem"></i>
+                <h5 class="mt-2">Anti-fuite de données</h5>
+                <p class="text-muted small mb-0">GroupShuffleSplit + GroupKFold(5) par hôte. Aucun hôte partagé entre entraînement et test. Transformations apprises dans un Pipeline sur le train uniquement. Test utilisé une seule fois.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card kpi-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-arrow-repeat text-primary" style="font-size:2.5rem"></i>
+                <h5 class="mt-2">Reproductibilité</h5>
+                <p class="text-muted small mb-0">random_state = 42 partout, versions des bibliothèques et hyperparamètres consignés dans les métadonnées de chaque modèle, empreintes SHA-256 des artefacts clés.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card kpi-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-rocket-takeoff text-warning" style="font-size:2.5rem"></i>
+                <h5 class="mt-2">Déployabilité</h5>
+                <p class="text-muted small mb-0">Expérience C : {{ C.n_features }} variables calculées depuis la chaîne d'URL, aucun accès réseau, inférence &lt; 1 ms. <a href="{{ url_for('predict_page') }}">Essayer →</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const EXPS = {{ exp_order | tojson }};
+const LABELS = {{ exp_order | map('extract', experiments) | map(attribute='short') | list | tojson }};
+const M = {{ exp_order | map('extract', experiments) | map(attribute='metrics') | list | tojson }};
+const col = k => M.map(m => m[k]);
+
+new Chart(document.getElementById('comparisonChart'), {
+    type: 'bar',
+    data: {
+        labels: LABELS,
+        datasets: [
+            { label: 'PR-AUC',    data: col('pr_auc'),    backgroundColor: 'rgba(109,124,255,.75)' },
+            { label: 'F1-Score',  data: col('f1'),        backgroundColor: 'rgba(52,224,161,.75)' },
+            { label: 'Précision', data: col('precision'), backgroundColor: 'rgba(255,200,87,.75)' },
+            { label: 'Rappel',    data: col('recall'),    backgroundColor: 'rgba(255,77,109,.75)' },
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { min: 0.5, max: 1.01, ticks: { callback: v => (v * 100).toFixed(0) + ' %' } } },
+        plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ' : ' + (c.raw * 100).toFixed(2) + ' %' } } }
+    }
+});
+
+new Chart(document.getElementById('datasetChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Légitime ({{ dataset.legitimate_pct }} %)', 'Phishing ({{ dataset.phishing_pct }} %)'],
+        datasets: [{ data: [{{ dataset.n_legitimate }}, {{ dataset.n_phishing }}],
+                     backgroundColor: ['rgba(52,224,161,.8)', 'rgba(255,77,109,.8)'], borderWidth: 2 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+});
+</script>
+{% endblock %}

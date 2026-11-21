@@ -1,0 +1,9 @@
+# Dépendances de l'application web PhishGuard (PROJ-IASD01)
+# Versions du pipeline : les modèles .joblib ont été sérialisés avec scikit-learn 1.8.0.
+Flask>=3.0
+pandas==2.3.3
+numpy==2.4.0
+scipy==1.17.0
+scikit-learn==1.8.0
+joblib
+pytest        # tests : pytest tests/test_webapp.py

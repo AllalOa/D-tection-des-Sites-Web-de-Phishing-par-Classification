@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — {{ title }}{% endblock %}
+{% block content %}
+<div class="hero text-center px-4">
+    <h1>{{ code }}</h1>
+    <p class="lead mb-1">{{ title }}</p>
+    <p class="mb-3 opacity-75">{{ message }}</p>
+    <a class="btn btn-primary" href="{{ url_for('home') }}"><i class="bi bi-house me-2"></i>Retour au tableau de bord</a>
+</div>
+{% endblock %}

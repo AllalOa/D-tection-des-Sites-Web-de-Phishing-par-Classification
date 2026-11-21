@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Expériences{% endblock %}
+
+{% macro n4(v) %}{% if v is number %}{{ "%.4f" | format(v) }}{% else %}—{% endif %}{% endmacro %}
+{% macro count_badge(v) %}
+    {% if v == 0 %}<span class="badge bg-success">0</span>
+    {% elif v < 100 %}<span class="badge bg-warning text-dark">{{ v | fmt_int }}</span>
+    {% else %}<span class="badge bg-danger">{{ v | fmt_int }}</span>{% endif %}
+{% endmacro %}
+
+{% block content %}
+<h2 class="section-title"><i class="bi bi-bar-chart-line me-2"></i>Comparaison des expériences</h2>
+<p class="text-muted">Meilleur modèle de chaque expérience (sélection par Average Precision en validation croisée GroupKFold), évalué
+une seule fois sur le jeu de test indépendant de {{ dataset.test_size | fmt_int }} URLs.</p>
+
+<!-- ── Main Comparison Table ────────────────────────────────────── -->
+<div class="table-responsive mb-4">
+    <table class="table table-clean align-middle">
+        <caption class="visually-hidden">Métriques de test des cinq expériences</caption>
+        <thead>
+            <tr>
+                <th scope="col">Expérience</th>
+                <th scope="col">Variables</th>
+                <th scope="col">Modèle</th>
+                <th scope="col" class="text-center">PR-AUC</th>
+                <th scope="col" class="text-center">ROC-AUC</th>
+                <th scope="col" class="text-center">Précision</th>
+                <th scope="col" class="text-center">Rappel</th>
+                <th scope="col" class="text-center">F1</th>
+                <th scope="col" class="text-center">FP</th>
+                <th scope="col" class="text-center">FN</th>
+                <th scope="col" class="text-center">Hors ligne</th>
+                <th scope="col" class="text-center">Source</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for key in exp_order %}
+        {% set exp = experiments[key] %}
+            <tr {% if key == 'C' %}class="table-success"{% endif %}>
+                <td><span class="exp-badge" style="background-color:{{ exp.color }};color:#06101c">{{ exp.short }}</span></td>
+                <td>
+                    <span class="fw-bold">{{ exp.n_features }}</span>
+                    <small class="text-muted d-block">{{ exp.feature_type }}</small>
+                </td>
+                <td>
+                    {{ exp.best_model }}
+                    <small class="text-muted d-block">{{ exp.hyperparams }}</small>
+                </td>
+                <td class="text-center fw-bold">{{ exp.metrics.pr_auc | fmt4 }}</td>
+                <td class="text-center fw-bold">{{ exp.metrics.roc_auc | fmt4 }}</td>
+                <td class="text-center">{{ exp.metrics.precision | pct }}</td>
+                <td class="text-center">{{ exp.metrics.recall | pct }}</td>
+                <td class="text-center fw-bold">{{ exp.metrics.f1 | pct }}</td>
+                <td class="text-center">{{ count_badge(exp.metrics.fp) }}</td>
+                <td class="text-center">{{ count_badge(exp.metrics.fn) }}</td>
+                <td class="text-center">
+                    {% if not exp.needs_network %}<i class="bi bi-check-circle-fill text-success" title="Oui"></i><span class="visually-hidden">Oui</span>
+                    {% else %}<i class="bi bi-x-circle text-muted" title="Non"></i><span class="visually-hidden">Non</span>{% endif %}
+                </td>
+                <td class="text-center small text-muted">{{ 'CSV' if data_sources[key] == 'csv' else 'doc.' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="alert alert-success">
+    <i class="bi bi-star-fill me-2"></i>
+    <strong>Exp. C (ligne verte)</strong> est le modèle recommandé pour le déploiement :
+    F1 = {{ experiments['C'].metrics.f1 | pct }} avec uniquement des variables d'URL, aucun accès réseau, prédiction &lt; 1 ms.
+</div>
+<div class="alert alert-warning small">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Comparaisons non causales.</strong> B et B′ diffèrent de 7 entrées brutes (6 variables + TLD) à cause d'une déviation
+    documentée (phase 8a-bis), et les variables d'URL de B′ et de C ne sont pas superposables : ces écarts ne sont pas des ablations contrôlées.
+    <a href="{{ url_for('limits') }}">Voir les limites →</a>
+</div>
+
+<!-- ── Charts Row ──────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="chart-container">
+            <h5 class="fw-bold mb-1">Métriques de classification (test)</h5>
+            <p class="small text-muted mb-3">Axe radial tronqué à 50 %.</p>
+            <div class="chart-box"><canvas id="metricsRadar" role="img" aria-label="Radar des métriques par expérience"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="chart-container">
+            <h5 class="fw-bold mb-1">Erreurs : faux positifs vs faux négatifs</h5>
+            <p class="small text-muted mb-3">Échelle logarithmique (symlog) : A n'a aucune erreur.</p>
+            <div class="chart-box"><canvas id="errorsChart" role="img" aria-label="Faux positifs et faux négatifs par expérience"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Experiment Details ──────────────────────────────────────── -->
+<h3 class="section-title"><i class="bi bi-info-circle me-2"></i>Détails par expérience</h3>
+
+<div class="row g-3 mb-4">
+{% for key in exp_order %}
+{% set exp = experiments[key] %}
+    <div class="col-lg-4 col-md-6">
+        <div class="card exp-card exp-{{ exp.tag }} h-100">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="mb-0" style="color: {{ exp.color }}">{{ exp.short }}</h5>
+                {% if not exp.needs_network %}<span class="badge bg-success">Déployable</span>{% endif %}
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">{{ exp.description }}</p>
+
+                <table class="table table-sm table-borderless mb-2">
+                    <tr><td class="text-muted">Variables</td><td class="text-end fw-bold">{{ exp.n_features }}</td></tr>
+                    <tr><td class="text-muted">Type</td><td class="text-end">{{ exp.feature_type }}</td></tr>
+                    <tr><td class="text-muted">Meilleur modèle</td><td class="text-end">{{ exp.best_model }}</td></tr>
+                    <tr><td class="text-muted">Hyperparamètres</td><td class="text-end"><small>{{ exp.hyperparams }}</small></td></tr>
+                    <tr><td class="text-muted">AP en validation croisée</td><td class="text-end">{{ exp.cv_ap }}</td></tr>
+                    <tr><td class="text-muted">Temps d'entraînement</td><td class="text-end">{{ exp.train_time }}</td></tr>
+                </table>
+
+                <h6 class="fw-bold mt-3">Matrice de confusion (test)</h6>
+                <table class="table table-sm table-bordered cm-table text-center mb-0">
+                    <thead class="table-light">
+                        <tr><th></th><th scope="col">Prédit Lég.</th><th scope="col">Prédit Phi.</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><th scope="row" class="table-light">Réel Lég.</th>
+                            <td class="cm-tn">{{ exp.metrics.tn | fmt_int }}</td><td class="cm-fp">{{ exp.metrics.fp | fmt_int }}</td></tr>
+                        <tr><th scope="row" class="table-light">Réel Phi.</th>
+                            <td class="cm-fn">{{ exp.metrics.fn | fmt_int }}</td><td class="cm-tp">{{ exp.metrics.tp | fmt_int }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-transparent text-center">
+                <a href="{{ url_for('evaluation', experiment=key) }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-clipboard-data me-1"></i>Évaluation détaillée
+                </a>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+
+<!-- ── CV Results ──────────────────────────────────────────────── -->
+<h3 class="section-title"><i class="bi bi-table me-2"></i>Résultats de validation croisée</h3>
+{% if cv_results %}
+<ul class="nav nav-tabs" id="cvTabs" role="tablist">
+{% for key in exp_order if key in cv_results %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {% if loop.first %}active{% endif %}" id="cv-tab-{{ key }}"
+                data-bs-toggle="tab" data-bs-target="#cv-pane-{{ key }}"
+                type="button" role="tab" aria-controls="cv-pane-{{ key }}"
+                aria-selected="{{ 'true' if loop.first else 'false' }}">{{ experiments[key].short }}</button>
+    </li>
+{% endfor %}
+</ul>
+
+<div class="tab-content" id="cvTabContent">
+{% for key in exp_order if key in cv_results %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="cv-pane-{{ key }}" role="tabpanel"
+         aria-labelledby="cv-tab-{{ key }}">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Modèle</th>
+                        <th scope="col" class="text-center">AP moyenne</th>
+                        <th scope="col" class="text-center">AP écart-type</th>
+                        <th scope="col" class="text-center">ROC-AUC moyenne</th>
+                        <th scope="col" class="text-center">F1 moyen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for row in cv_results[key] %}
+                    <tr>
+                        <td>{{ row.get('model', '—') }}</td>
+                        <td class="text-center fw-bold">{{ n4(row.get('average_precision_mean')) }}</td>
+                        <td class="text-center text-muted">{% if row.get('average_precision_std') is number %}± {{ "%.4f" | format(row.get('average_precision_std')) }}{% else %}—{% endif %}</td>
+                        <td class="text-center">{{ n4(row.get('roc_auc_mean')) }}</td>
+                        <td class="text-center">{{ n4(row.get('f1_mean')) }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-inbox"></i>
+    Aucun fichier <code>reports/tables/cv_results_*.csv</code> trouvé.
+    Générez-les avec <code>python -m src.train --experiment C</code> (puis A, B, B_prime, D).
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LABELS = {{ exp_order | map('extract', experiments) | map(attribute='short') | list | tojson }};
+const COLORS = {{ exp_order | map('extract', experiments) | map(attribute='color') | list | tojson }};
+const M = {{ exp_order | map('extract', experiments) | map(attribute='metrics') | list | tojson }};
+
+new Chart(document.getElementById('metricsRadar'), {
+    type: 'radar',
+    data: {
+        labels: ['PR-AUC', 'ROC-AUC', 'Précision', 'Rappel', 'F1'],
+        datasets: M.map((m, i) => ({
+            label: LABELS[i],
+            data: [m.pr_auc, m.roc_auc, m.precision, m.recall, m.f1],
+            borderColor: COLORS[i], backgroundColor: COLORS[i] + '22', borderWidth: 2, pointRadius: 3,
+        }))
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { r: { min: 0.5, max: 1.0, grid: { color: 'rgba(140,160,220,.15)' },
+                       angleLines: { color: 'rgba(140,160,220,.15)' } } },
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+
+new Chart(document.getElementById('errorsChart'), {
+    type: 'bar',
+    data: {
+        labels: LABELS,
+        datasets: [
+            { label: 'Faux positifs (fausses alertes)',  data: M.map(m => m.fp), backgroundColor: 'rgba(255,77,109,.75)' },
+            { label: 'Faux négatifs (phishing manqué)', data: M.map(m => m.fn), backgroundColor: 'rgba(255,200,87,.75)' },
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { type: 'logarithmic', min: 0.5, ticks: { callback: v => [1, 10, 100, 1000, 10000].includes(v) ? v : '' } } },
+        plugins: { legend: { position: 'bottom' },
+                   tooltip: { callbacks: { label: c => c.dataset.label + ' : ' + c.raw } } }
+    }
+});
+</script>
+{% endblock %}

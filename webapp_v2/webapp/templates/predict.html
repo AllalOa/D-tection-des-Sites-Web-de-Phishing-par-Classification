@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Tester le modèle{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-10">
+
+        <div class="hero text-center px-4 mb-4">
+            <h2><i class="bi bi-search me-2"></i>Tester le modèle</h2>
+            <p class="mb-0 opacity-75">Saisissez une URL : le modèle l'analyse localement, sans aucun accès réseau.</p>
+        </div>
+
+        {% if not status.ready_for_prediction %}
+        <div class="alert alert-warning small" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Modèles ou module de prédiction introuvables
+            (<code>models/best_model_C.joblib</code>, <code>models/best_model_D.joblib</code>, <code>src/predict.py</code>).
+            Entraînez-les avec <code>python -m src.train --experiment C</code> puis <code>--experiment D</code>.
+        </div>
+        {% endif %}
+
+        <!-- ── Form ────────────────────────────────────────────── -->
+        <form class="card kpi-card mb-4" id="predictForm" novalidate>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <label for="urlInput" class="form-label fw-bold"><i class="bi bi-link-45deg me-1"></i>URL à analyser</label>
+                    <input type="text" class="form-control predict-input" id="urlInput" name="url" maxlength="2048"
+                           placeholder="https://www.example.com/login?user=test" autocomplete="off" spellcheck="false"
+                           aria-describedby="urlHelp" required>
+                    <div class="form-text" id="urlHelp">L'URL doit inclure le schéma (https://) et un hôte valide — 2048 caractères maximum.</div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-7">
+                        <label for="expSelect" class="form-label fw-bold"><i class="bi bi-flask me-1"></i>Modèle (expérience)</label>
+                        <select class="form-select" id="expSelect" aria-describedby="expHelp">
+                            {% for key in exp_order if experiments[key].predictable %}
+                            <option value="{{ key }}" {% if key == default_experiment %}selected{% endif %}>
+                                {{ experiments[key].name }}
+                            </option>
+                            {% endfor %}
+                            <optgroup label="Indisponibles (variables de page requises)">
+                            {% for key in exp_order if not experiments[key].predictable %}
+                                <option value="{{ key }}" disabled>{{ experiments[key].name }}</option>
+                            {% endfor %}
+                            </optgroup>
+                        </select>
+                        <div class="form-text" id="expHelp">A, B et B′ exigent des variables de page (LineOfCode, HasPasswordField…) que l'on ne peut pas déduire de l'URL.</div>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="thrSelect" class="form-label fw-bold"><i class="bi bi-sliders me-1"></i>Seuil de décision</label>
+                        <select class="form-select" id="thrSelect" aria-describedby="thrHelp">
+                            <option value="" selected>Standard (0,5)</option>
+                            <option value="high_precision" disabled>Haute précision ({{ '%.4f' | format(high_precision) }})</option>
+                        </select>
+                        <div class="form-text" id="thrHelp">« Haute précision » n'est documenté que pour l'expérience D.</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg w-100" id="predictBtn" type="submit">
+                    <i class="bi bi-cpu me-2"></i>Analyser l'URL
+                </button>
+
+                <div class="text-center mt-3 spinner-predict" id="spinner" role="status" aria-live="polite">
+                    <div class="spinner-border text-primary" aria-hidden="true"></div>
+                    <p class="text-muted mt-2 mb-0">Analyse en cours…</p>
+                </div>
+            </div>
+        </form>
+
+        <!-- ── Error ───────────────────────────────────────────── -->
+        <div class="alert alert-danger" id="errorArea" role="alert" style="display:none">
+            <i class="bi bi-exclamation-triangle me-2"></i><span id="errorMessage"></span>
+        </div>
+
+        <!-- ── Result ──────────────────────────────────────────── -->
+        <div id="resultArea" style="display:none" aria-live="polite">
+            <div class="card result-card mb-4">
+                <div class="card-body p-4 text-center" id="resultHeader">
+                    <i id="resultIcon" style="font-size:3rem" aria-hidden="true"></i>
+                    <h2 class="mt-2" id="resultLabel"></h2>
+                    <p class="mb-0 opacity-75 text-break" id="resultUrl"></p>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row text-center g-3 mb-3">
+                        <div class="col-md-4"><div class="fw-bold fs-5" id="resultScore">—</div><small class="text-muted">Score du modèle</small></div>
+                        <div class="col-md-4"><div class="fw-bold fs-5" id="resultThreshold">—</div><small class="text-muted">Seuil utilisé</small></div>
+                        <div class="col-md-4"><div class="fw-bold fs-5" id="resultModel">—</div><small class="text-muted">Modèle</small></div>
+                    </div>
+
+                    <div id="notes"></div>
+
+                    <div class="alert alert-info small mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <strong>Note :</strong> le score est le score brut du modèle (<code>predict_proba</code> / <code>decision_function</code>),
+                        <strong>pas</strong> une probabilité calibrée.
+                    </div>
+
+                    <h5 class="fw-bold mt-3 mb-2"><i class="bi bi-list-columns me-2"></i>Variables calculées</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light"><tr><th scope="col">Variable</th><th scope="col" class="text-end">Valeur</th></tr></thead>
+                            <tbody id="featuresTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Examples ────────────────────────────────────────── -->
+        <div class="card kpi-card">
+            <div class="card-body">
+                <h5 class="fw-bold mb-1"><i class="bi bi-lightbulb me-2"></i>Profils d'URL à essayer</h5>
+                <p class="small text-muted">Exemples illustratifs : ils ne proviennent pas du jeu de test et leur vraie classe n'est pas connue.</p>
+                <div class="list-group list-group-flush">
+                    {% for tag, url, icon in [
+                        ('URL nue (G2 — cas difficile)', 'https://www.service-login.com/', 'bi-exclamation-diamond text-warning'),
+                        ('Chemin simple', 'https://www.github.com/settings/profile', 'bi-link-45deg text-info'),
+                        ('Hôte IP + paramètres', 'http://192.168.1.1/admin/login.php?redirect=https://bank.com&session=abc123', 'bi-hdd-network text-danger'),
+                        ('Sous-domaines multiples', 'http://secure-paypal-login.suspicious-site.xyz/verify?id=12345&token=abc', 'bi-diagram-3 text-danger'),
+                    ] %}
+                    <button type="button" class="list-group-item list-group-item-action example-url" data-url="{{ url }}">
+                        <i class="bi {{ icon }} me-2" aria-hidden="true"></i><span class="text-break">{{ url }}</span>
+                        <span class="badge bg-secondary float-end ms-2">{{ tag }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const $ = id => document.getElementById(id);
+const FEATURE_HINTS = {
+    IsHTTPS: "1 si l'URL commence par https",
+    URLLength: "Longueur de l'URL (variable non reproductible exactement, doc. Annexe A)",
+    DomainLength: "Longueur du nom de domaine",
+    NoOfSubDomain: "Nombre de sous-domaines (comptage naïf)",
+    TLDLength: "Longueur de l'extension",
+    IsDomainIP: "1 si l'hôte est une adresse IP",
+    HasObfuscation: "1 si des caractères encodés (%xx) sont présents",
+    NoOfQMarkInURL: "Nombre de « ? »", NoOfEqualsInURL: "Nombre de « = »", NoOfAmpersandInURL: "Nombre de « & »",
+};
+
+function show(el, on) { el.style.display = on ? '' : 'none'; }
+
+function showError(msg) {
+    $('errorMessage').textContent = msg;
+    show($('errorArea'), true);
+    show($('resultArea'), false);
+}
+
+// Le seuil « haute précision » n'est documenté que pour D
+function syncThreshold() {
+    const opt = $('thrSelect').querySelector('option[value="high_precision"]');
+    const isD = $('expSelect').value === 'D';
+    opt.disabled = !isD;
+    if (!isD && $('thrSelect').value === 'high_precision') $('thrSelect').value = '';
+}
+$('expSelect').addEventListener('change', syncThreshold);
+syncThreshold();
+
+document.querySelectorAll('.example-url').forEach(el => el.addEventListener('click', () => {
+    $('urlInput').value = el.dataset.url;
+    $('predictForm').requestSubmit();
+}));
+
+$('predictForm').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const url = $('urlInput').value.trim();
+    if (!url) { showError("Veuillez entrer une URL."); $('urlInput').focus(); return; }
+
+    show($('resultArea'), false); show($('errorArea'), false);
+    show($('spinner'), true); $('predictBtn').disabled = true;
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+        const resp = await fetch('/api/predict', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+            body: JSON.stringify({ url, experiment: $('expSelect').value, threshold: $('thrSelect').value || null }),
+        });
+        let data = null;
+        try { data = await resp.json(); } catch (_) { /* réponse non JSON */ }
+        if (!resp.ok || !data || data.error) {
+            showError((data && data.error) || `Erreur serveur (HTTP ${resp.status}).`);
+        } else {
+            showResult(data);
+        }
+    } catch (err) {
+        showError(err.name === 'AbortError' ? "Délai dépassé : le serveur n'a pas répondu."
+                                            : "Impossible de joindre le serveur : " + err.message);
+    } finally {
+        clearTimeout(timer); show($('spinner'), false); $('predictBtn').disabled = false;
+    }
+});
+
+function showResult(data) {
+    const phishing = data.predicted_class === 1;
+    $('resultHeader').className = 'card-body p-4 text-center ' + (phishing ? 'result-phishing' : 'result-legitime');
+    $('resultIcon').className = phishing ? 'bi bi-exclamation-triangle-fill' : 'bi bi-check-circle-fill';
+    $('resultLabel').textContent = phishing ? 'Phishing détecté' : 'URL légitime';
+    $('resultUrl').textContent = data.url;
+    $('resultScore').textContent = Number(data.model_score).toFixed(4);
+    $('resultThreshold').textContent = Number(data.threshold_used).toFixed(4);
+    $('resultModel').textContent = `${data.model_name} (${data.experiment})`;
+
+    const notes = $('notes'); notes.replaceChildren();
+    (data.notes || []).forEach(n => {
+        const d = document.createElement('div');
+        d.className = 'alert small mb-3 alert-' + (n.level === 'warning' ? 'warning' : 'secondary');
+        d.setAttribute('role', 'note');
+        const i = document.createElement('i');
+        i.className = 'bi me-2 ' + (n.level === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle');
+        d.append(i, document.createTextNode(n.text));
+        notes.appendChild(d);
+    });
+
+    const tbody = $('featuresTable'); tbody.replaceChildren();
+    for (const [key, val] of Object.entries(data.features || {})) {
+        const tr = document.createElement('tr'); tr.className = 'feature-row';
+        const td1 = document.createElement('td'), code = document.createElement('code');
+        code.textContent = key; if (FEATURE_HINTS[key]) code.title = FEATURE_HINTS[key];
+        td1.appendChild(code);
+        const td2 = document.createElement('td'); td2.className = 'text-end fw-bold';
+        td2.textContent = typeof val === 'number' ? (Number.isInteger(val) ? String(val) : val.toFixed(4)) : String(val);
+        tr.append(td1, td2); tbody.appendChild(tr);
+    }
+    show($('resultArea'), true);
+    $('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+{% endblock %}
