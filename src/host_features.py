@@ -1,9 +1,9 @@
 """
 host_features.py - Extraction de caractéristiques de l'hôte (Host Features - Expérience D).
 
-Ce module extrait le nom d'hôte nettoyé et normalisé d'une URL et calcule 11 caractéristiques
+Ce module extrait le nom d'hôte nettoyé et normalisé d'une URL et calcule 10 caractéristiques
 strictement limitées à la structure de l'hôte, sans fuite de schéma, de chemin, ou d'artefacts
-de protocole.
+de protocole (HostNoOfOtherSpecial a été éliminée car constante=0 dans PhiUSIIL).
 
 Fonctions exportées :
     extract_host(url: str) -> str
@@ -88,7 +88,7 @@ def extract_host(url: str) -> str:
     host = host.lower()
 
     # 6. Retirer "www." initial (répété si nécessaire ex: www.www. -> hors www initial)
-    if host.startswith("www."):
+    while host.startswith("www."):
         host = host[4:]
 
     # 7. Retirer le point final éventuel
@@ -103,7 +103,7 @@ def extract_host(url: str) -> str:
 
 def host_features(url: str) -> Dict[str, Union[int, float]]:
     """
-    Calcule exactement les 11 caractéristiques d'hôte pour une URL.
+    Calcule exactement les 10 caractéristiques d'hôte pour une URL.
 
     Variables calculées :
     - HostLength : longueur de l'hôte
@@ -116,7 +116,7 @@ def host_features(url: str) -> Dict[str, Union[int, float]]:
     - HostLetterRatio : proportion de lettres
     - HostNoOfHyphens : nombre de tirets '-'
     - HostLongestLabel : longueur de l'étiquette la plus longue
-    - HostNoOfOtherSpecial : caractères ni alphanumériques, ni '-', ni '.'
+    (Note : HostNoOfOtherSpecial est exclue car constante=0 dans PhiUSIIL)
     """
     host = extract_host(url)
     host_len = len(host)

@@ -19,7 +19,7 @@ Variables calculées (18) :
 import re
 import math
 import ipaddress
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, urlsplit, unquote
 
 import numpy as np
 import pandas as pd
@@ -48,8 +48,11 @@ _SPECIAL_CHARS = set("@!#$%^&*()+=[]{}|;',<>?~`\"\\")
 
 def _is_ip_address(host: str) -> bool:
     """Retourne True si host est une adresse IPv4 ou IPv6 valide."""
+    if not host:
+        return False
     try:
-        ipaddress.ip_address(host)
+        clean_host = host.strip("[]")
+        ipaddress.ip_address(clean_host)
         return True
     except ValueError:
         return False
@@ -76,14 +79,12 @@ def compute_url_features(url: str) -> dict:
 
     # ── Parsing de l'URL ───────────────────────────────────────────────
     try:
-        parsed = urlparse(url)
-        scheme = parsed.scheme.lower()
-        netloc = parsed.netloc or ""
-        # Supprimer le port s'il est présent
-        host = netloc.split(":")[0] if netloc else ""
+        parsed = urlsplit(url)
+        scheme = parsed.scheme.lower() if parsed.scheme else ""
+        raw_host = parsed.hostname or ""
+        host = raw_host.strip("[]").lower() if raw_host else ""
     except Exception:
         scheme = ""
-        netloc = ""
         host = ""
 
     # ── 1. URLLength ───────────────────────────────────────────────────
