@@ -369,3 +369,40 @@ def test_live_prediction_on_service_login_url(real_artifacts_client):
     assert data["model_score"] > 0.5
 
 
+def test_api_explain_success(real_artifacts_client):
+    """Vérifie le succès (200) de la route /api/explain avec additivité valide et plot base64."""
+    resp = real_artifacts_client.post(
+        "/api/explain",
+        json={"url": "https://www.service-login.com/", "experiment": "C"}
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["success"] is True
+    assert data["additivity_valid"] is True
+    assert "plot_base64" in data
+    assert data["plot_base64"].startswith("data:image/png;base64,")
+    assert "top_phishing_factors" in data
+
+
+def test_api_explain_invalid_url(real_artifacts_client):
+    """Vérifie le rejet (400) pour une URL invalide ou vide."""
+    resp_empty = real_artifacts_client.post("/api/explain", json={"url": ""})
+    assert resp_empty.status_code == 400
+    assert resp_empty.get_json()["success"] is False
+
+    resp_invalid = real_artifacts_client.post("/api/explain", json={"url": "not_an_url"})
+    assert resp_invalid.status_code == 400
+    assert resp_invalid.get_json()["success"] is False
+
+
+def test_api_explain_unknown_experiment(real_artifacts_client):
+    """Vérifie le rejet (400) pour une expérience inconnue ou non prédictible."""
+    resp_unknown = real_artifacts_client.post(
+        "/api/explain",
+        json={"url": "https://www.service-login.com/", "experiment": "UNKNOWN"}
+    )
+    assert resp_unknown.status_code == 400
+    assert resp_unknown.get_json()["success"] is False
+
+
+
