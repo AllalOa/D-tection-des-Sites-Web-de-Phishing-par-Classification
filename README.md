@@ -51,9 +51,9 @@ Accéder ensuite à l'interface dans votre navigateur : **http://127.0.0.1:5000*
 4. **Volet 4 · Benchmark Multi-Modèles & Inférence par Lot (`/benchmark`) :**
    - Comparaison complète : DummyClassifier (baseline naïve), DecisionTree depth=1, LogisticRegression, DecisionTree CART, RandomForest (Champion déployable), XGBoost, LightGBM, CatBoost.
    - **Moteur d'inférence par lot :** Téléversez un fichier CSV contenant une liste d'URLs pour obtenir la classification instantanée avec export des résultats au format CSV enrichi.
-5. **Inférence Temps Réel & Descripteurs Lexicaux (`/predict`) :**
-   - Test instantané d'une URL quelconque (hors ligne, < 1ms) avec extraction de descripteurs lexicaux (IP, HTTPS, caractères spéciaux, entropie, mots suspects).
-   - Espace réservé pour le volet d'explicabilité locale SHAP (confié au membre IASD15).
+5. **Inférence Temps Réel & Explicabilité SHAP (`/predict`) :**
+   - Test instantané d'une URL quelconque (hors ligne, < 2ms) avec extraction des 18 descripteurs lexicaux (IP, HTTPS, caractères spéciaux, longueur, ratios d'entropie).
+   - **Explicabilité Locale TreeSHAP (développée par @mohamedmakhloufi2004) :** Décomposition additive exacte $f(x) = \phi_0 + \sum \phi_i$, restitution des facteurs polarisants (phishing vs légitime), affichage du graphique Waterfall interactif et route API REST `/api/explain`.
 
 ---
 
@@ -70,6 +70,9 @@ pytest -o pythonpath=. tests/test_data_leakage.py -v
 
 # Exécution ciblée de l'extraction des descripteurs lexicaux d'URL
 pytest -o pythonpath=. tests/test_url_features.py -v
+
+# Exécution ciblée du moteur d'explicabilité TreeSHAP (16 tests passants)
+pytest -o pythonpath=. tests/test_explain.py -v
 ```
 
 > **Note sur le jeu de données brut (`data/raw/`) :**  
@@ -82,7 +85,7 @@ pytest -o pythonpath=. tests/test_url_features.py -v
 
 ---
 
-## 4. Prédiction en Ligne de Commande (CLI)
+## 4. Prédiction & Explicabilité SHAP en Ligne de Commande (CLI)
 
 ```bash
 # Prédiction en mode texte
@@ -90,7 +93,22 @@ python scripts/demo_predict.py "https://www.example.com/login"
 
 # Prédiction structurée JSON pour intégration API
 python scripts/demo_predict.py "https://www.example.com/login" --json
+
+# Explication locale SHAP (décomposition additive f(x) = base + sum(shap))
+python -c "from src.explain import explain_url; res = explain_url('http://paypal-security-update.com/login', experiment='C'); print(f'Proba: {res[\"predicted_proba\"]:.4f}, Base: {res[\"base_value\"]:.4f}'); print('Top facteurs phishing:', res['top_phishing_factors'][:3])"
 ```
+
+### Usage de l'API REST `/api/explain`
+
+L'application Flask expose l'explicabilité TreeSHAP via un endpoint JSON dédié :
+
+```bash
+curl -X POST http://localhost:5000/api/explain \
+     -H "Content-Type: application/json" \
+     -d '{"url": "http://paypal-security-update.com/login", "experiment": "C"}'
+```
+
+Le retour inclut la probabilité prédite, la valeur de base $\mathbb{E}[f(x)]$, la somme des valeurs de Shapley, la liste signée des facteurs de risque et des facteurs rassurants, ainsi que le tracé Waterfall en image base64 (`plot_base64`).
 
 ---
 
