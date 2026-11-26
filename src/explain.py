@@ -137,7 +137,16 @@ class PhishExplainer:
         else:
             feats = compute_url_features(url)
             
-        row = {f: feats.get(f, 0.0) for f in self.feature_names}
+        row = {}
+        for f in self.feature_names:
+            v = feats.get(f)
+            if v is None or (isinstance(v, float) and np.isnan(v)):
+                row[f] = 0.0
+            else:
+                try:
+                    row[f] = float(v)
+                except (ValueError, TypeError):
+                    row[f] = 0.0
         return pd.DataFrame([row])[self.feature_names]
 
     def explain(self, url: str) -> Dict[str, Any]:
