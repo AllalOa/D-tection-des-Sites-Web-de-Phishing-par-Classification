@@ -579,3 +579,26 @@ def process_batch_inference_csv(df_in: pd.DataFrame, experiment: str = "C", max_
         "records": records,
     }
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Explicabilité Locale SHAP (TreeExplainer) — Membre IASD15
+# ══════════════════════════════════════════════════════════════════════════════
+
+def explain_url_service(url: str, experiment: str = "C") -> dict:
+    """
+    Fournit l'explicabilité locale SHAP (TreeExplainer) pour une URL.
+    Importe src.explain à la demande pour que l'app démarre même si shap manque.
+    """
+    try:
+        from src.explain import get_explainer
+    except ImportError as exc:
+        raise RuntimeError(f"Module d'explicabilité SHAP indisponible : {exc}") from exc
+
+    explainer = get_explainer(experiment=experiment)
+    explanation = explainer.explain(url)
+    plot_b64 = explainer.generate_waterfall_plot_base64(url)
+    explanation["plot_base64"] = plot_b64
+    explanation["waterfall_plot_base64"] = plot_b64
+    return explanation
+
+

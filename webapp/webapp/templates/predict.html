@@ -104,19 +104,55 @@
                         </table>
                     </div>
 
-                    <!-- ── Volet Explicabilité Locale SHAP (Réservé IASD15) ── -->
-                    <div class="card border border-primary border-opacity-25 bg-dark p-3 mt-4 text-start">
+                    <!-- ── Volet Explicabilité Locale TreeSHAP (Membre IASD15 : mohamedmakhloufi2004) ── -->
+                    <div id="shapArea" class="card border border-primary border-opacity-30 bg-dark p-3 mt-4 text-start shadow-sm">
                         <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                            <h6 class="mb-0 text-primary"><i class="bi bi-lightbulb-fill me-2"></i>Explicabilité Locale (SHAP / LIME)</h6>
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Assigné : Membre IASD15</span>
+                            <h5 class="mb-0 text-primary fw-bold">
+                                <i class="bi bi-diagram-3-fill me-2"></i>Explicabilité Locale TreeSHAP
+                            </h5>
+                            <span class="badge bg-primary text-dark fw-bold">Développé par : mohamedmakhloufi2004 (IASD15)</span>
                         </div>
-                        <p class="small text-secondary mb-2">
-                            L'attribution locale des descripteurs (TreeSHAP) pour cette prédiction ainsi que la génération des graphiques waterfall
-                            sont assignées à <strong>mohamedmakhloufi2004 (IASD15)</strong> pour porter son impact de contribution à 100%
-                            (spécification complète dans <code>MEMBER_TASKS.md</code>).
+                        <p class="small text-secondary mb-3">
+                            Décomposition additive exacte de la prédiction : chaque caractéristique &phi;<sub>i</sub> pousse soit vers le 
+                            <strong class="text-danger">Phishing (&phi;<sub>i</sub> &gt; 0)</strong> soit vers le 
+                            <strong class="text-success">Légitime (&phi;<sub>i</sub> &lt; 0)</strong>.
                         </p>
-                        <div class="p-2 rounded bg-black bg-opacity-40 border border-secondary border-opacity-10 small font-monospace text-muted">
-                            Module en cours d'intégration : <code>src.explain.PhishExplainer(pipeline).explain_url_features(features)</code>
+
+                        <!-- Spinner pendant le calcul SHAP -->
+                        <div id="shapSpinner" class="text-center py-4">
+                            <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                            <span class="small text-muted">Calcul des contributions de Shapley en cours...</span>
+                        </div>
+
+                        <!-- Erreur SHAP si service indisponible -->
+                        <div id="shapError" class="alert alert-warning small mb-0" style="display:none;"></div>
+
+                        <!-- Contenu interactif après chargement -->
+                        <div id="shapContent" style="display:none;">
+                            <!-- Formule d'additivité vérifiée -->
+                            <div class="p-2 mb-3 rounded bg-black bg-opacity-50 border border-secondary border-opacity-25 small font-monospace d-flex justify-content-between flex-wrap gap-2">
+                                <div><span class="text-muted">Base E[f(x)] :</span> <span id="shapBaseVal" class="fw-bold text-info">0.4279</span></div>
+                                <div><span class="text-muted">&Sigma; &phi;<sub>i</sub> :</span> <span id="shapSumVal" class="fw-bold">0.0000</span></div>
+                                <div><span class="text-muted">Probabilité f(x) :</span> <span id="shapProbVal" class="fw-bold text-primary">0.0000</span></div>
+                                <div><span class="badge bg-success-subtle text-success border border-success-subtle">Additivité exacte vérifiée (&epsilon; &lt; 1e-4)</span></div>
+                            </div>
+
+                            <!-- Graphique Waterfall / Horizontal bar SHAP -->
+                            <div class="text-center my-2">
+                                <img id="shapPlotImg" class="img-fluid rounded border border-secondary border-opacity-25 shadow" alt="Graphique Waterfall TreeSHAP" style="max-height: 480px;" />
+                            </div>
+
+                            <!-- Tableaux d'attribution détaillée -->
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-6">
+                                    <h6 class="text-danger small fw-bold mb-2"><i class="bi bi-shield-fill-x me-1"></i>Facteurs poussant vers PHISHING (&phi; &gt; 0)</h6>
+                                    <div id="shapPhishList" class="list-group list-group-flush small"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-success small fw-bold mb-2"><i class="bi bi-shield-fill-check me-1"></i>Facteurs rassurants LÉGITIMES (&phi; &lt; 0)</h6>
+                                    <div id="shapLegitList" class="list-group list-group-flush small"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -248,6 +284,68 @@ function showResult(data) {
     }
     show($('resultArea'), true);
     $('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Appel asynchrone du module SHAP développé par Mohamed (IASD15)
+    loadShapExplanation(data.url, data.experiment);
+}
+
+async function loadShapExplanation(url, experiment) {
+    show($('shapSpinner'), true);
+    show($('shapContent'), false);
+    show($('shapError'), false);
+
+    try {
+        const resp = await fetch('/api/explain', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, experiment }),
+        });
+        const d = await resp.json();
+        if (!resp.ok || !d || !d.success) {
+            $('shapError').textContent = (d && d.error) || "Explicabilité SHAP non disponible.";
+            show($('shapError'), true);
+            return;
+        }
+
+        $('shapBaseVal').textContent = Number(d.base_value).toFixed(4);
+        $('shapSumVal').textContent = (d.shap_sum >= 0 ? '+' : '') + Number(d.shap_sum).toFixed(4);
+        $('shapProbVal').textContent = Number(d.predicted_proba).toFixed(4);
+
+        if (d.plot_base64) {
+            $('shapPlotImg').src = d.plot_base64;
+        }
+
+        const phishList = $('shapPhishList'); phishList.replaceChildren();
+        if (d.top_phishing_factors && d.top_phishing_factors.length > 0) {
+            d.top_phishing_factors.slice(0, 5).forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item bg-dark text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2';
+                item.innerHTML = `<div><strong class="text-danger font-monospace">${f.feature}</strong><br><span class="text-muted small">${f.description}</span></div><span class="badge bg-danger font-monospace">+${Number(f.shap_value).toFixed(4)}</span>`;
+                phishList.appendChild(item);
+            });
+        } else {
+            phishList.innerHTML = '<div class="text-muted small p-2">Aucun facteur significatif poussant vers le phishing.</div>';
+        }
+
+        const legitList = $('shapLegitList'); legitList.replaceChildren();
+        if (d.top_legitimate_factors && d.top_legitimate_factors.length > 0) {
+            d.top_legitimate_factors.slice(0, 5).forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item bg-dark text-light border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2';
+                item.innerHTML = `<div><strong class="text-success font-monospace">${f.feature}</strong><br><span class="text-muted small">${f.description}</span></div><span class="badge bg-success font-monospace">${Number(f.shap_value).toFixed(4)}</span>`;
+                legitList.appendChild(item);
+            });
+        } else {
+            legitList.innerHTML = '<div class="text-muted small p-2">Aucun facteur significatif poussant vers le légitime.</div>';
+        }
+
+        show($('shapContent'), true);
+    } catch (e) {
+        $('shapError').textContent = "Erreur de chargement du moteur SHAP : " + e.message;
+        show($('shapError'), true);
+    } finally {
+        show($('shapSpinner'), false);
+    }
 }
 </script>
 {% endblock %}

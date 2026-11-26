@@ -407,6 +407,48 @@ def api_predict():
     return jsonify(svc.to_jsonable(payload))
 
 
+@app.route("/api/explain", methods=["POST"])
+def api_explain():
+    """
+    Explicabilité locale SHAP (TreeExplainer) sur une URL — Membre IASD15.
+    Corps JSON : {"url": "...", "experiment": "C"|"D"}
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return _error("Corps JSON invalide : attendu {\"url\": \"...\"}.", 400)
+
+    url = data.get("url")
+    if not isinstance(url, str) or not url.strip():
+        return _error("Veuillez fournir une URL.", 400)
+    url = url.strip()
+    if len(url) > svc.MAX_URL_LENGTH:
+        return _error(f"URL trop longue (maximum {svc.MAX_URL_LENGTH} caractères).", 400)
+
+    experiment = str(data.get("experiment") or svc.DEFAULT_EXPERIMENT).upper()
+    if experiment not in svc.PREDICTABLE:
+        return _error(
+            f"Expérience non supportée pour l'explicabilité : {experiment!r}. "
+            f"Seules les expériences {list(svc.PREDICTABLE)} sont analysables hors-ligne.",
+            400,
+            allowed=list(svc.PREDICTABLE)
+        )
+
+    try:
+        result = svc.explain_url_service(url, experiment=experiment)
+    except Exception as exc:
+        from src.predict import InvalidURLError
+        if isinstance(exc, (InvalidURLError, ValueError)):
+            return _error(f"URL invalide : {exc}", 400)
+        elif isinstance(exc, (FileNotFoundError, RuntimeError)):
+            log.exception("Modèle ou moteur SHAP indisponible")
+            return _error(f"Moteur d'explicabilité indisponible : {exc}", 503)
+        else:
+            log.exception("Erreur interne d'explicabilité")
+            return _error(f"Erreur interne lors de l'explication : {exc}", 500)
+
+    return jsonify(svc.to_jsonable(result)), 200
+
+
 @app.route("/api/experiments")
 def api_experiments():
     """Métriques des expériences + origine des chiffres."""
