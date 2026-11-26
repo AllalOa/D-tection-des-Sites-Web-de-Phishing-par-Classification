@@ -36,9 +36,17 @@
 
     <nav class="rail-nav" aria-label="Navigation principale">
         <a {% if request.endpoint == 'home' %}class="active" aria-current="page"{% endif %} href="{{ url_for('home') }}"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
-        <a {% if request.endpoint == 'experiments' %}class="active" aria-current="page"{% endif %} href="{{ url_for('experiments') }}"><i class="bi bi-bar-chart-line-fill"></i>Expériences</a>
+        
+        <div class="rail-label">Volets Académiques (/4)</div>
+        <a {% if request.endpoint == 'quality' %}class="active" aria-current="page"{% endif %} href="{{ url_for('quality') }}"><i class="bi bi-check2-circle"></i>1. Contrôle Qualité</a>
+        <a {% if request.endpoint == 'eda' %}class="active" aria-current="page"{% endif %} href="{{ url_for('eda') }}"><i class="bi bi-pie-chart-fill"></i>2. EDA Interactive (10+)</a>
+        <a {% if request.endpoint == 'statistics' %}class="active" aria-current="page"{% endif %} href="{{ url_for('statistics') }}"><i class="bi bi-calculator"></i>3. Validation Statistique</a>
+        <a {% if request.endpoint == 'benchmark' %}class="active" aria-current="page"{% endif %} href="{{ url_for('benchmark') }}"><i class="bi bi-cpu-fill"></i>4. Benchmark &amp; Lot</a>
+
+        <div class="rail-label">Inférence &amp; Robustesse</div>
+        <a {% if request.endpoint == 'predict_page' %}class="active" aria-current="page"{% endif %} href="{{ url_for('predict_page') }}"><i class="bi bi-crosshair2"></i>Tester une URL</a>
         <a {% if request.endpoint == 'limits' %}class="active" aria-current="page"{% endif %} href="{{ url_for('limits') }}"><i class="bi bi-exclamation-diamond-fill"></i>Biais &amp; limites</a>
-        <a {% if request.endpoint == 'predict_page' %}class="active" aria-current="page"{% endif %} href="{{ url_for('predict_page') }}"><i class="bi bi-crosshair2"></i>Tester le modèle</a>
+        <a {% if request.endpoint == 'experiments' %}class="active" aria-current="page"{% endif %} href="{{ url_for('experiments') }}"><i class="bi bi-bar-chart-line-fill"></i>Protocoles A à D</a>
 
         <div class="rail-label">Évaluation détaillée</div>
         {% for key in exp_order %}

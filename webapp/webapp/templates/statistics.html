@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Volet 3 · Validation Statistique Formelle{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-calculator text-warning me-2"></i>Volet 3 · Validation Statistique Formelle</h1>
+        <p class="text-secondary mb-0">Tests d'hypothèses rigoureux (Chi-deux, Kruskal-Wallis, ANOVA, Shapiro-Wilk, Mann-Whitney) avec corrections multi-tests et tailles d'effet.</p>
+    </div>
+    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 fs-6">
+        <i class="bi bi-patch-check me-1"></i> {{ tests|length }} Tests Statistiques Enregistrés
+    </span>
+</div>
+
+<!-- Résumé des 4 familles obligatoires -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 border-0 bg-dark-subtle shadow-sm p-3">
+            <span class="text-secondary small text-uppercase fw-semibold">1. Test du Chi-Deux (χ²)</span>
+            <div class="fs-5 fw-bold text-light mt-1">19 variables testées</div>
+            <small class="text-secondary">Indépendance des indicatrices (HasSocialNet, IsHTTPS...). Effet : V de Cramér.</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 border-0 bg-dark-subtle shadow-sm p-3">
+            <span class="text-secondary small text-uppercase fw-semibold">2. Kruskal-Wallis & ANOVA</span>
+            <div class="fs-5 fw-bold text-light mt-1">Multi-Groupes (TLD)</div>
+            <small class="text-secondary">Variance inter-groupes (.com, .org, .net...). Rejet de l'homogénéité (p < 1e-15).</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 border-0 bg-dark-subtle shadow-sm p-3">
+            <span class="text-secondary small text-uppercase fw-semibold">3. Shapiro-Wilk</span>
+            <div class="fs-5 fw-bold text-light mt-1">Normalité Rejetée</div>
+            <small class="text-secondary">W < 0.85 (p < 0.001) sur les compteurs : justifie les approches non-paramétriques.</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 border-0 bg-dark-subtle shadow-sm p-3">
+            <span class="text-secondary small text-uppercase fw-semibold">4. Mann-Whitney U</span>
+            <div class="fs-5 fw-bold text-light mt-1">31 variables continues</div>
+            <small class="text-secondary">Comparaison non-paramétrique bivariée. Effet : Corrélation bisériale de rang.</small>
+        </div>
+    </div>
+</div>
+
+<!-- Filtres de recherche -->
+<div class="card border-0 bg-dark-subtle shadow-sm mb-4">
+    <div class="card-body p-3">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary border-opacity-10 text-secondary"><i class="bi bi-search"></i></span>
+                    <input type="text" id="testSearch" class="form-control bg-dark border-secondary border-opacity-10 text-light" placeholder="Filtrer par variable (ex: URLLength, HasSocialNet, Shapiro...)...">
+                </div>
+            </div>
+            <div class="col-md-6 d-flex gap-2 justify-content-md-end flex-wrap">
+                <select id="testTypeFilter" class="form-select bg-dark border-secondary border-opacity-10 text-light" style="max-width: 280px;">
+                    <option value="all">Tous les types de tests (56)</option>
+                    <option value="Mann-Whitney">Mann-Whitney U</option>
+                    <option value="Chi-Square">Chi-Square (χ²)</option>
+                    <option value="Shapiro-Wilk">Shapiro-Wilk (Normalité)</option>
+                    <option value="Kruskal-Wallis">Kruskal-Wallis (Multi-groupes)</option>
+                    <option value="ANOVA">ANOVA à 1 facteur</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tableau exhaustif des tests d'hypothèses -->
+<div class="card border-0 bg-dark-subtle shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0 pt-3 px-3 d-flex justify-content-between align-items-center">
+        <h5 class="h6 mb-0 text-light"><i class="bi bi-list-check me-2 text-info"></i>Tableau Détaillé des Hypothèses, p-values et Tailles d'Effet</h5>
+        <span class="badge bg-secondary-subtle text-secondary small">Seuil critique α = 0.01</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small" id="testsTable">
+                <thead class="bg-dark text-secondary">
+                    <tr>
+                        <th>Variable</th>
+                        <th>Test Statistique</th>
+                        <th>Hypothèses (H₀ / H₁)</th>
+                        <th class="text-end">Statistique</th>
+                        <th class="text-end">p-value (brute / FDR)</th>
+                        <th>Taille d'Effet</th>
+                        <th class="text-center">Verdict (α=0.01)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tests %}
+                    <tr class="test-row" data-name="{{ t.Variable|lower }}" data-type="{{ t.Test_Utilise }}">
+                        <td class="font-monospace fw-semibold text-light">{{ t.Variable }}</td>
+                        <td>
+                            <span class="badge bg-secondary-subtle text-light">{{ t.Test_Utilise }}</span>
+                        </td>
+                        <td class="small" style="max-width: 320px;">
+                            <div class="text-secondary"><strong class="text-muted">H₀ :</strong> {{ t.H0 }}</div>
+                            <div class="text-info mt-1"><strong class="text-muted">H₁ :</strong> {{ t.H1 }}</div>
+                        </td>
+                        <td class="text-end font-monospace text-light">
+                            {{ t.Statistique_Nom }} = {{ "%.4g"|format(t.Statistique_Valeur) }}
+                        </td>
+                        <td class="text-end font-monospace">
+                            {% if t.p_raw < 1e-15 %}
+                            <span class="text-danger fw-bold">&lt; 1e-15</span>
+                            {% else %}
+                            <span class="text-warning fw-bold">{{ "%.4g"|format(t.p_raw) }}</span>
+                            {% endif %}
+                            <div class="text-secondary small">FDR: {{ "%.4g"|format(t.p_fdr_bh) }}</div>
+                        </td>
+                        <td>
+                            <span class="text-light fw-semibold">{{ t.Taille_Effet_Nom }} : {{ "%.4f"|format(t.Taille_Effet_Valeur) }}</span>
+                            <div class="text-secondary small">{{ t.Ampleur_Effet }}</div>
+                        </td>
+                        <td class="text-center">
+                            {% if t['Significatif_Alpha_0.01'] %}
+                            <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle-fill me-1"></i>H₀ Rejetée</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">H₀ Conservée</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const searchInput = document.getElementById('testSearch');
+const filterSelect = document.getElementById('testTypeFilter');
+const rows = document.querySelectorAll('.test-row');
+
+function filterTable() {
+    const q = searchInput.value.toLowerCase().trim();
+    const typeFilter = filterSelect.value;
+
+    rows.forEach(row => {
+        const name = row.getAttribute('data-name');
+        const type = row.getAttribute('data-type');
+        const matchesQuery = !q || name.includes(q) || type.toLowerCase().includes(q);
+        const matchesType = typeFilter === 'all' || type.includes(typeFilter);
+
+        if (matchesQuery && matchesType) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+searchInput.addEventListener('input', filterTable);
+filterSelect.addEventListener('change', filterTable);
+</script>
+{% endblock %}
