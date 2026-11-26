@@ -90,6 +90,49 @@ class TestInputValidationAndPerformance:
         assert elapsed_ms < 300.0, f"Temps d'exécution excessif : {elapsed_ms:.2f} ms"
         assert res["latency_ms"] < 300.0
 
+    def test_missing_features_and_nan_fallback(self, explainer_c, monkeypatch):
+        """
+        Vérifie la robustesse face à des descripteurs manquants ou corrompus (NaN/None) :
+        1. Clé absente du dictionnaire extrait -> repli automatique à 0.0 dans _extract_features_df.
+        2. Valeur None ou NaN -> conversion robuste à 0.0 et maintien strict de l'additivité SHAP.
+        """
+        import src.explain as exp_mod
+        orig_compute = exp_mod.compute_url_features
+
+        # Cas 1 : clé absente
+        def mock_missing_key(url):
+            feats = orig_compute(url)
+            feats.pop("URLLength", None)
+            feats.pop("DomainLength", None)
+            return feats
+
+        monkeypatch.setattr(exp_mod, "compute_url_features", mock_missing_key)
+        df_extracted = explainer_c._extract_features_df("https://www.service-login.com/")
+        assert df_extracted["URLLength"].iloc[0] == 0.0
+        assert df_extracted["DomainLength"].iloc[0] == 0.0
+
+        res_missing = explainer_c.explain("https://www.service-login.com/")
+        assert res_missing["success"] is True
+        assert res_missing["additivity_valid"] is True
+        assert res_missing["additivity_error"] < 1e-4
+
+        # Cas 2 : valeur None ou NaN
+        def mock_corrupted_values(url):
+            feats = orig_compute(url)
+            feats["URLLength"] = None
+            feats["NoOfSubDomain"] = float("nan")
+            return feats
+
+        monkeypatch.setattr(exp_mod, "compute_url_features", mock_corrupted_values)
+        df_corrupted = explainer_c._extract_features_df("https://www.service-login.com/")
+        assert df_corrupted["URLLength"].iloc[0] == 0.0
+        assert df_corrupted["NoOfSubDomain"].iloc[0] == 0.0
+
+        res_corrupted = explainer_c.explain("https://www.service-login.com/")
+        assert res_corrupted["success"] is True
+        assert res_corrupted["additivity_valid"] is True
+        assert res_corrupted["additivity_error"] < 1e-4
+
 
 class TestVisualizationAndHelper:
     def test_waterfall_plot_base64_generation(self, explainer_c):
