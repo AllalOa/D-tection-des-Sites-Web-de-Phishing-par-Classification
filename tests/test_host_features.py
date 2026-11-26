@@ -11,6 +11,7 @@ Vérifie :
 import pytest
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 from src.host_features import (
     extract_host,
@@ -110,6 +111,7 @@ class TestHostFeaturesInvariance:
 class TestHostFeaturesUnitVsBatch:
     """Cohérence unitaire / lot et validation du schéma de données."""
 
+    @pytest.mark.skipif(not Path("data/raw/PhiUSIIL_Phishing_URL_Dataset.csv").exists(), reason="data/raw/PhiUSIIL_Phishing_URL_Dataset.csv absent")
     def test_batch_matches_unit_on_1000_urls(self):
         """Vérifie que host_features_batch produit les mêmes résultats que host_features sur 1 000 URLs réelles."""
         df = load_data()
@@ -137,6 +139,7 @@ class TestHostFeaturesUnitVsBatch:
 class TestHostSplitConsistency:
     """Vérifie l'isolation par Host et la cohérence des splits entre A, B, B', C et D."""
 
+    @pytest.mark.skipif(not Path("data/raw/PhiUSIIL_Phishing_URL_Dataset.csv").exists(), reason="data/raw/PhiUSIIL_Phishing_URL_Dataset.csv absent")
     def test_no_host_shared_between_train_and_test(self):
         """Aucun Host ne doit être commun entre train et test."""
         from src.split import make_train_test_split
@@ -148,6 +151,7 @@ class TestHostSplitConsistency:
         overlap = train_hosts & test_hosts
         assert len(overlap) == 0, f"{len(overlap)} hôtes partagés entre train et test !"
 
+    @pytest.mark.skipif(not Path("data/raw/PhiUSIIL_Phishing_URL_Dataset.csv").exists(), reason="data/raw/PhiUSIIL_Phishing_URL_Dataset.csv absent")
     def test_row_ids_identical_across_all_experiments(self):
         """Les row_id train et test doivent être strictement identiques pour A, B, B', C et D."""
         from src.split import make_train_test_split
