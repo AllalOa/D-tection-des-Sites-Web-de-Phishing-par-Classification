@@ -173,3 +173,29 @@ class TestComputeUrlFeaturesBatch:
         result = compute_url_features_batch(urls)
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
+
+
+class TestLexicalDescriptors:
+    """Tests des descripteurs lexicaux enrichis (temps réel)."""
+
+    def test_suspicious_keywords_detection(self):
+        from src.url_features import extract_lexical_descriptors
+        url = "http://paypal-security-update.account-verification.com/login"
+        desc = extract_lexical_descriptors(url)
+        assert desc["is_https"] == 0
+        assert desc["nb_suspicious_keywords"] >= 3
+        assert "login" in desc["suspicious_keywords_found"]
+        assert "paypal" in desc["suspicious_keywords_found"]
+
+    def test_ip_and_entropy_descriptors(self):
+        from src.url_features import extract_lexical_descriptors, calculate_entropy
+        url = "http://192.168.1.1/admin?token=xyz"
+        desc = extract_lexical_descriptors(url)
+        assert desc["is_domain_ip"] == 1
+        assert desc["shannon_entropy"] > 0.0
+
+    def test_extended_compute_url_features(self):
+        res = compute_url_features("https://secure.bank.com/signin", extended=True)
+        assert "lexical_descriptors" in res
+        assert res["lexical_descriptors"]["is_https"] == 1
+
