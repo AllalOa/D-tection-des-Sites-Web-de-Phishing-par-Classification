@@ -19,6 +19,7 @@ Usage :
 import numpy as np
 import pandas as pd
 
+from pathlib import Path
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import (
@@ -229,3 +230,53 @@ def describe_outliers(df: pd.DataFrame, feature_cols: list) -> pd.DataFrame:
             "upper_fence": upper_fence,
         })
     return pd.DataFrame(records).sort_values("pct_outliers", ascending=False)
+
+
+def save_pipeline(pipeline: Pipeline, filepath: str | Path, metadata: dict | None = None) -> None:
+    """
+    Sauvegarde un pipeline scikit-learn fitté et ses métadonnées de manière atomique.
+
+    Parameters
+    ----------
+    pipeline : Pipeline
+        Pipeline scikit-learn complet fitté.
+    filepath : str | Path
+        Chemin du fichier de destination (.joblib).
+    metadata : dict, optional
+        Dictionnaire de métadonnées additionnelles à enregistrer en JSON adjacent.
+    """
+    import joblib
+    import json
+    dest = Path(filepath)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(pipeline, dest, compress=3)
+
+    if metadata is not None:
+        meta_path = dest.with_suffix(".json")
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=4, default=str)
+
+
+def load_pipeline(filepath: str | Path) -> Pipeline:
+    """
+    Charge et valide un pipeline scikit-learn sauvegardé.
+
+    Parameters
+    ----------
+    filepath : str | Path
+        Chemin du fichier .joblib.
+
+    Returns
+    -------
+    Pipeline
+        Pipeline scikit-learn validé.
+    """
+    import joblib
+    p = Path(filepath)
+    if not p.exists():
+        raise FileNotFoundError(f"Pipeline introuvable : {p}")
+    pipeline = joblib.load(p)
+    if not hasattr(pipeline, "predict"):
+        raise ValueError(f"L'objet chargé depuis {p} ne possède pas la méthode predict().")
+    return pipeline
+
