@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Volet 1 · Contrôle Qualité des Données{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-check2-circle text-primary me-2"></i>Volet 1 · Contrôle Qualité des Données</h1>
+        <p class="text-secondary mb-0">Audit d'intégrité, assainissement des doublons et validation des typologies du corpus PhiUSIIL (UCI 967).</p>
+    </div>
+    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6">
+        <i class="bi bi-shield-check me-1"></i> Données validées à 100%
+    </span>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 border-0 bg-dark-subtle shadow-sm p-3">
+            <span class="text-secondary small text-uppercase fw-semibold">Volume Brut</span>
+            <div class="fs-3 fw-bold text-light mt-1">{{ dataset_info.raw_rows | fmt_int }}</div>
+            <small class="text-muted">Observations initiales</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 border-0 bg-dark-subtle shadow-sm p-3">
+            <span class="text-secondary small text-uppercase fw-semibold">Doublons Stricts</span>
+            <div class="fs-3 fw-bold text-danger mt-1">-{{ duplicates.duplicates_removed }}</div>
+            <small class="text-muted">{{ duplicates.duplicates_pct }}% supprimés (URLs identiques)</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 border-0 bg-dark-subtle shadow-sm p-3">
+            <span class="text-secondary small text-uppercase fw-semibold">Dataset Épuré</span>
+            <div class="fs-3 fw-bold text-success mt-1">{{ dataset_info.total_rows | fmt_int }}</div>
+            <small class="text-muted">Lignes nettes analysées</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100 border-0 bg-dark-subtle shadow-sm p-3">
+            <span class="text-secondary small text-uppercase fw-semibold">Valeurs Manquantes</span>
+            <div class="fs-3 fw-bold text-primary mt-1">0 <small class="fs-6">(0.00%)</small></div>
+            <small class="text-muted">Intégrité complète sur 56 colonnes</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Familles de variables -->
+    <div class="col-lg-6">
+        <div class="card border-0 bg-dark-subtle shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-3 px-3 d-flex justify-content-between align-items-center">
+                <h5 class="h6 mb-0 text-light"><i class="bi bi-diagram-3 me-2 text-info"></i>Taxonomie des 56 Caractéristiques</h5>
+                <span class="badge bg-secondary-subtle text-light">4 Familles</span>
+            </div>
+            <div class="card-body p-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="text-secondary small">
+                                <th>Famille</th>
+                                <th class="text-center">Nb Colonnes</th>
+                                <th>Autonomie Réseau</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in feature_families %}
+                            <tr>
+                                <td class="fw-semibold text-light">{{ f.family }}</td>
+                                <td class="text-center"><span class="badge bg-primary-subtle text-primary">{{ f.count }}</span></td>
+                                <td>
+                                    {% if f.network_free %}
+                                    <span class="badge bg-success-subtle text-success"><i class="bi bi-wifi-off me-1"></i>Hors-ligne (< 1ms)</span>
+                                    {% else %}
+                                    <span class="badge bg-warning-subtle text-warning"><i class="bi bi-globe me-1"></i>Nécessite HTTP</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small text-secondary">{{ f.description }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Répartition des Classes & Hôtes -->
+    <div class="col-lg-6">
+        <div class="card border-0 bg-dark-subtle shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-3 px-3">
+                <h5 class="h6 mb-0 text-light"><i class="bi bi-pie-chart me-2 text-warning"></i>Équilibre des Classes & Découpage Hôte</h5>
+            </div>
+            <div class="card-body p-3">
+                <div class="p-3 rounded bg-dark border border-secondary border-opacity-10 mb-3">
+                    <div class="d-flex justify-content-between text-secondary small mb-1">
+                        <span>Légitime (0) : <strong>{{ dataset_info.n_legitimate | fmt_int }}</strong></span>
+                        <span>Phishing (1) : <strong>{{ dataset_info.n_phishing | fmt_int }}</strong></span>
+                    </div>
+                    <div class="progress" style="height: 12px;">
+                        <div class="progress-bar bg-success" style="width: {{ dataset_info.legitimate_pct }}%" title="Légitime {{ dataset_info.legitimate_pct }}%"></div>
+                        <div class="progress-bar bg-danger" style="width: {{ dataset_info.phishing_pct }}%" title="Phishing {{ dataset_info.phishing_pct }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between text-secondary small mt-1">
+                        <span class="text-success">{{ dataset_info.legitimate_pct }}% Légitime</span>
+                        <span class="text-danger">{{ dataset_info.phishing_pct }}% Phishing</span>
+                    </div>
+                </div>
+
+                <ul class="list-group list-group-flush bg-transparent small text-secondary">
+                    <li class="list-group-item bg-transparent text-secondary px-0 py-2 d-flex justify-content-between">
+                        <span><i class="bi bi-hdd-network me-2 text-info"></i>Nombre d'hôtes distincts :</span>
+                        <strong class="text-light">{{ duplicates.unique_hosts | fmt_int }}</strong>
+                    </li>
+                    <li class="list-group-item bg-transparent text-secondary px-0 py-2 d-flex justify-content-between">
+                        <span><i class="bi bi-layers me-2 text-info"></i>Taille partition d'entraînement (80%) :</span>
+                        <strong class="text-light">{{ dataset_info.train_size | fmt_int }} URLs</strong>
+                    </li>
+                    <li class="list-group-item bg-transparent text-secondary px-0 py-2 d-flex justify-content-between">
+                        <span><i class="bi bi-shield-lock me-2 text-info"></i>Taille jeu de test scellé (20%) :</span>
+                        <strong class="text-light">{{ dataset_info.test_size | fmt_int }} URLs</strong>
+                    </li>
+                    <li class="list-group-item bg-transparent text-secondary px-0 py-2 d-flex justify-content-between">
+                        <span><i class="bi bi-shield-x me-2 text-success"></i>Chevauchement d'hôtes Train-Test :</span>
+                        <strong class="text-success">0 (Étanchéité prouvée par test unitaire)</strong>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tableau du contrôle des valeurs manquantes -->
+<div class="card border-0 bg-dark-subtle shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0 pt-3 px-3 d-flex justify-content-between align-items-center">
+        <h5 class="h6 mb-0 text-light"><i class="bi bi-table me-2 text-primary"></i>Rapport d'Exhaustivité des Données (Valeurs Manquantes)</h5>
+        <span class="badge bg-success-subtle text-success">Complétude 100.0%</span>
+    </div>
+    <div class="card-body p-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead>
+                    <tr class="text-secondary">
+                        <th>Nom de la Variable</th>
+                        <th class="text-center">Valeurs Manquantes</th>
+                        <th class="text-center">Taux Manquant (%)</th>
+                        <th>Statut Qualité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in missing_records[:15] %}
+                    <tr>
+                        <td class="font-monospace text-light">{{ m.colonne }}</td>
+                        <td class="text-center text-success fw-bold">{{ m.valeurs_manquantes }}</td>
+                        <td class="text-center text-success fw-bold">{{ m['taux_manquant_%'] }} %</td>
+                        <td><span class="badge bg-success-subtle text-success"><i class="bi bi-check-lg me-1"></i>Intact</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

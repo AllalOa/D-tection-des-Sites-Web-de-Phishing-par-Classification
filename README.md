@@ -1,141 +1,181 @@
-# PROJ-IASD01 — Détection de phishing par classification supervisée
+# PROJ-IASD01 — Détection des Sites Web de Phishing par Classification
 
-Pipeline ML complet (CRISP-DM) pour la détection de sites de phishing à partir du dataset PhiUSIIL (UCI id 967).
+Système complet de Machine Learning et Data Mining (méthodologie CRISP-DM) pour la détection en temps réel de sites web de phishing à partir du dataset **PhiUSIIL** (UCI id 967, ~235 795 lignes).
 
-**Python :** 3.14.2 | **scikit-learn :** 1.8.0 | **pandas :** 2.3.3
+**Environnement :** Python 3.11 / 3.13 / 3.14 | **scikit-learn :** 1.8.0 | **pandas :** 2.3.3 | **Flask :** 3.1.3
 
 ---
 
-## Installation
+## 1. Installation Rapide
 
 ```bash
-# 1. Cloner ou copier le dossier PROJ-IASD01/
-# 2. Installer les dépendances (environnement Python 3.14.2)
+# 1. Cloner ou ouvrir le dossier du projet
+cd D-tection-des-Sites-Web-de-Phishing-par-Classification
+
+# 2. Créer et activer un environnement virtuel (optionnel mais recommandé)
+python -m venv venv
+source venv/bin/activate        # Linux / MacOS
+.\venv\Scripts\activate         # Windows
+
+# 3. Installer les dépendances certifiées
 pip install -r requirements.txt
-
-# 3. Placer le fichier CSV dans data/raw/
-# Le fichier attendu : data/raw/PhiUSIIL_Phishing_URL_Dataset.csv
 ```
 
 ---
 
-## Ordre d'exécution
+## 2. Lancement de l'Application Web Interactive (PhishGuard)
 
-### 1. Tests unitaires (sans entraînement)
-
-```bash
-# Depuis le répertoire PROJ-IASD01/
-pytest tests/ -v
-```
-
-### 2. Entraînement des modèles
+L'application web Flask comprend **les 4 volets académiques formels du barème** ainsi que l'inférence par lot et le test d'URL unitaire :
 
 ```bash
-# Expérience C : URL_ONLY (modèle déployable — recommandé pour commencer)
-python -m src.train --experiment C
-
-# Expérience A : toutes les 50 variables numériques + TLD
-python -m src.train --experiment A
-
-# Expérience B : A sans les variables DERIVED
-python -m src.train --experiment B
+# Lancement direct en mode local
+python webapp/webapp/app.py
 ```
+Accéder ensuite à l'interface dans votre navigateur : **http://127.0.0.1:5000**
 
-Les modèles sont sauvegardés dans `models/`.  
-Le meilleur modèle de l'expérience C est sauvegardé dans `models/best_model.joblib`.
-
-### 3. Évaluation finale (une seule fois sur le test)
-
-```bash
-python -m src.evaluate --experiment C
-python -m src.evaluate --experiment A
-python -m src.evaluate --experiment B
-```
-
-Les figures (`reports/figures/`) et tableaux (`reports/tables/`) sont générés automatiquement.
-
-### 4. Prédiction sur une URL
-
-```bash
-python -m src.predict "https://www.example.com/login?user=test"
-```
-
-Retourne la classe prédite (phishing/légitime) et le score brut du modèle.
-
-### 5. Notebooks (optionnel, pour l'EDA et les rapports)
-
-Ouvrir dans l'ordre :
-1. `notebooks/01_inspection.ipynb` — inspection et vérification du dataset
-2. `notebooks/02_eda_statistiques.ipynb` — EDA, distributions, corrélations, tests statistiques
-3. `notebooks/03_modelisation.ipynb` — modélisation et validation croisée
-4. `notebooks/04_evaluation.ipynb` — évaluation finale et robustesse
+### Structure des 4 Volets dans l'Application :
+1. **Volet 1 · Contrôle Qualité (`/quality`) :**
+   - Audit des 235 795 observations, suppression des 425 doublons stricts (235 370 lignes nettes).
+   - Contrôle d'exhaustivité (0 valeur manquante sur 56 variables).
+   - Taxonomie des 4 familles de caractéristiques (18 URL_ONLY, 32 PAGE, 6 DERIVED, méta).
+2. **Volet 2 · EDA Interactive (`/eda`) :**
+   - Galerie analytique de **10 figures scientifiques haute résolution** (distributions univariées, corrélations de Spearman vs Pearson, boxplots de longueur, tailles d'effet Cramér, biais de protocole `https://www.`, etc.).
+   - Filtres interactifs par catégorie.
+3. **Volet 3 · Validation Statistique Formelle (`/statistiques`) :**
+   - Les 4 familles de tests d'hypothèses obligatoires :
+     * **Test du Chi-deux ($\chi^2$) d'indépendance** sur 19 variables binaires ($V$ de Cramér).
+     * **Kruskal-Wallis $H$ & ANOVA à 1 facteur** sur les groupes multi-TLD ($p < 10^{-15}$).
+     * **Test de normalité de Shapiro-Wilk** ($W < 0.85$, $p < 0.001$, justifiant les approches non-paramétriques).
+     * **Test de Mann-Whitney $U$** sur 31 variables continues ($r$ bisérial de rang).
+   - Formulation explicite de $H_0$, $H_1$, statistiques, p-values brutes et ajustées (Bonferroni, Benjamini-Hochberg FDR) et interprétations scientifiques.
+4. **Volet 4 · Benchmark Multi-Modèles & Inférence par Lot (`/benchmark`) :**
+   - Comparaison complète : DummyClassifier (baseline naïve), DecisionTree depth=1, LogisticRegression, DecisionTree CART, RandomForest (Champion déployable), XGBoost, LightGBM, CatBoost.
+   - **Moteur d'inférence par lot :** Téléversez un fichier CSV contenant une liste d'URLs pour obtenir la classification instantanée avec export des résultats au format CSV enrichi.
+5. **Inférence Temps Réel & Descripteurs Lexicaux (`/predict`) :**
+   - Test instantané d'une URL quelconque (hors ligne, < 1ms) avec extraction de descripteurs lexicaux (IP, HTTPS, caractères spéciaux, entropie, mots suspects).
+   - Espace réservé pour le volet d'explicabilité locale SHAP (confié au membre IASD15).
 
 ---
 
-## Arborescence
+## 3. Lancement des Tests Automatisés (Pytest)
+
+La suite de tests unitaires et d'intégration couvre l'intégrité des données, l'hermétisme des pipelines, l'anti-fuite de données et l'application web :
+
+```bash
+# Exécution ciblée des tests de l'application web (60 tests passants)
+pytest -o pythonpath=. webapp/tests/test_webapp.py -v
+
+# Exécution ciblée du test anti-fuite de données (Data Leakage)
+pytest -o pythonpath=. tests/test_data_leakage.py -v
+
+# Exécution ciblée de l'extraction des descripteurs lexicaux d'URL
+pytest -o pythonpath=. tests/test_url_features.py -v
+```
+
+> **Note sur le jeu de données brut (`data/raw/`) :**  
+> Le fichier brut `data/raw/PhiUSIIL_Phishing_URL_Dataset.csv` (~80 Mo, 235 795 lignes) est ignoré par Git (conforme aux bonnes pratiques MLOps). Les modèles sérialisés (`models/*.joblib`), les tables de métriques et les figures sont inclus pour permettre le déploiement direct. Pour régénérer les modèles à partir de zéro après téléchargement du CSV source :
+> ```bash
+> python -m src.build_features
+> python -m src.train --experiment C
+> python -m src.train --experiment D
+> ```
+
+---
+
+## 4. Prédiction en Ligne de Commande (CLI)
+
+```bash
+# Prédiction en mode texte
+python scripts/demo_predict.py "https://www.example.com/login"
+
+# Prédiction structurée JSON pour intégration API
+python scripts/demo_predict.py "https://www.example.com/login" --json
+```
+
+---
+
+## 5. Arborescence du Dépôt
 
 ```
 PROJ-IASD01/
-├── data/
-│   ├── raw/                         ← Placer le CSV ici (non versionné)
-│   └── processed/                   ← Train/test splitts (non versionnés)
-├── notebooks/
-│   ├── 01_inspection.ipynb
-│   ├── 02_eda_statistiques.ipynb
-│   ├── 03_modelisation.ipynb
-│   └── 04_evaluation.ipynb
+├── AUDIT.md                        ← Audit complet initial et matrice de notation
+├── MEMBER_TASKS.md                 ← Cahier des charges exclusif membre IASD15
+├── COMMIT_PLAN.md                  ← Plan d'exécution des commits atomiques
+├── requirements.txt                ← Dépendances Python certifiées
+├── .gitignore                      ← Règles d'exclusion des artéfacts et logs
+├── README.md                       ← Documentation principale
+│
+├── docs/
+│   ├── Rapport_Phishing_IASD01.pdf ← Rapport scientifique officiel (17 pages)
+│   ├── Rapport_Projet.md           ← Source markdown du rapport scientifique
+│   └── EXPERIMENT_*.md             ← Protocoles méthodologiques détaillés
+│
 ├── src/
-│   ├── config.py                    ← Chemins, constantes, familles de variables
-│   ├── data_loader.py               ← Chargement et nettoyage du CSV
-│   ├── split.py                     ← Découpage train/test par Domain
-│   ├── preprocessing.py             ← Pipelines sklearn
-│   ├── url_features.py              ← Calcul features URL_ONLY (sans réseau)
-│   ├── train.py                     ← Entraînement + GridSearchCV
-│   ├── evaluate.py                  ← Évaluation finale et robustesse
-│   └── predict.py                   ← Prédiction réutilisable
+│   ├── config.py                   ← Paramètres, seuils et taxonomie des features
+│   ├── data_loader.py              ← Chargement et déduplication (425 doublons)
+│   ├── split.py                    ← GroupShuffleSplit & GroupKFold par hôte
+│   ├── preprocessing.py            ← ColumnTransformer + Pipeline scellé et joblib
+│   ├── build_features.py           ← Extraction et persistance URL_ONLY
+│   ├── url_features.py             ← Descripteurs lexicaux temps réel et mots suspects
+│   ├── train.py                    ← Entraînement et validation croisée
+│   ├── evaluate.py                 ← Métriques (F1, PR-AUC, ROC-AUC, confusion)
+│   └── predict.py                  ← Moteur d'inférence sécurisé hors-ligne
+│
 ├── models/
-│   ├── best_model.joblib            ← Meilleur modèle exp. C (non versionné)
-│   └── model_metadata.json          ← Métadonnées du meilleur modèle
-├── tests/
-│   ├── test_config.py
-│   ├── test_data_loader.py
-│   ├── test_split.py
-│   ├── test_preprocessing.py
-│   ├── test_url_features.py
-│   └── test_predict.py
+│   ├── best_model_A.joblib         ← Pipeline complet Exp. A (50 features + TLD)
+│   ├── best_model_B.joblib         ← Pipeline Exp. B (44 features + TLD)
+│   ├── best_model_B_prime.joblib   ← Pipeline Exp. B' (38 features sans TLD)
+│   ├── best_model_C.joblib         ← Pipeline Champion Exp. C (18 URL_ONLY)
+│   ├── best_model_D.joblib         ← Pipeline Exp. D (Host features)
+│   └── model_metadata_*.json       ← Métadonnées complètes et hyperparamètres
+│
 ├── reports/
-│   ├── figures/                     ← Courbes PR, ROC, learning curves (png)
-│   └── tables/                      ← Métriques, erreurs, features (csv)
-├── requirements.txt
-├── .gitignore
-└── README.md
+│   ├── figures/                    ← 10 figures EDA + 10 courbes PR/ROC
+│   └── tables/                     ← 56 tests d'hypothèses, métriques, CSV
+│
+├── scripts/
+│   └── demo_predict.py             ← CLI interactif de démonstration
+│
+├── delivery_ml/
+│   └── MANIFEST_SHA256.csv         ← Manifeste d'intégrité cryptographique
+│
+├── notebooks/
+│   ├── 01_inspection.ipynb         ← Inspection et nettoyage du dataset
+│   └── 02_eda_statistiques.ipynb   ← EDA approfondie et tests statistiques
+│
+├── tests/
+│   ├── test_data_leakage.py        ← Suite de validation anti-fuite de données
+│   ├── test_build_features.py      ← Tests du générateur de features
+│   ├── test_url_features.py        ← Tests des descripteurs lexicaux
+│   ├── test_delivery_ml.py         ← Tests d'intégrité de la livraison
+│   └── ...                         ← Tests unitaires modulaires
+│
+└── webapp/
+    ├── webapp/
+    │   ├── app.py                  ← Serveur Flask avec les 4 volets et API
+    │   ├── services.py             ← Couche logique et traitement par lot CSV
+    │   ├── templates/              ← Templates Jinja2 des volets interactifs
+    │   └── static/                 ← Assets locaux autonomes (CSS, Chart.js)
+    └── tests/
+        └── test_webapp.py          ← Suite de 57 tests de l'application web
 ```
 
 ---
 
-## Expériences
+## 6. Synthèse des Expériences Scientifiques
 
-| Expérience | Variables | Description |
-|-----------|-----------|-------------|
-| A | 50 numériques + TLD | Référence complète |
-| B | 44 numériques + TLD (sans DERIVED) | Sans variables dérivées |
-| C | 18 URL_ONLY | **Modèle déployable** (aucun accès page) |
-
----
-
-## Règles importantes
-
-- **Pas de fuite de données** : toutes les transformations sont apprises sur le train uniquement (inside Pipeline).
-- **Découpage par Domain** : GroupShuffleSplit + GroupKFold pour éviter toute fuite de domaines.
-- **Le test est utilisé UNE SEULE FOIS** pour l'évaluation finale.
-- **random_state=42** partout pour la reproductibilité.
-- La variable `model_score` de `predict_url()` n'est **pas** une probabilité calibrée.
+| Expérience | Features | Autonomie Réseau | F1-Score | PR-AUC | Modèle Retenu | Statut de Déploiement |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Exp. A** | 50 vars + TLD | Non (Requiert HTML) | 1.0000 | 1.0000 | RandomForest (100 arbres) | Référence théorique |
+| **Exp. B** | 44 vars + TLD | Non (Sans DERIVED) | 0.9999 | 1.0000 | RandomForest (200 arbres) | Analyse de sensibilité |
+| **Exp. B′** | 38 vars (sans TLD) | Non (Purified HTML) | 0.9994 | 0.9999 | RandomForest (max_depth=20) | Robustesse TLD |
+| **Exp. C** | **18 vars (URL_ONLY)** | **Oui (100% Hors-ligne)** | **0.9936** | **0.9979** | **RandomForest (100 arbres)** | **Champion Déployable** |
+| **Exp. D** | 8 vars (Host_ONLY) | Oui (Host uniquement) | 0.7408 | 0.8585 | RandomForest (haute précision) | Analyse de domaine |
 
 ---
 
-## Dataset
+## 7. Rigueur Méthodologique & Protection Anti-Fuite
 
-- **Source** : PhiUSIIL Phishing URL Dataset (UCI id 967, CC BY 4.0)
-- **Taille** : 235 795 lignes × 56 colonnes
-- **Cible** : `label` recodé → `phishing` = 1 (phishing), 0 (légitime)
-- **Classe positive** : phishing (~42.8%)
+- **Hermétisme strict :** Toutes les transformations (standardisation `StandardScaler`, regroupement `TLDGrouper`, encodage `OneHotEncoder`, transformation `log1p`) sont isolées **à l'intérieur du pipeline scikit-learn** et ajustées exclusivement sur le partitionnement d'entraînement.
+- **Découpage par Hôte :** Aucun domaine ou nom d'hôte n'est partagé entre train et test (`GroupShuffleSplit` et `GroupKFold` par hôte), garantissant une évaluation exempte de mémorisation de domaine.
+- **Validation Statistique :** Rejet formel de la normalité via Shapiro-Wilk ($p < 0.001$), confirmant la nécessité de modélisations non linéaires et d'arbres de décision.

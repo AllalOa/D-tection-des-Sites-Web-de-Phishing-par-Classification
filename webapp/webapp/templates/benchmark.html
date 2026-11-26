@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Volet 4 · Benchmark de Modèles & Inférence par Lot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 mb-1"><i class="bi bi-cpu-fill text-primary me-2"></i>Volet 4 · Benchmark Multi-Modèles & Inférence par Lot</h1>
+        <p class="text-secondary mb-0">Comparaison rigoureuse des baselines vs algorithmes d'ensemble et moteur de classification par lot sur fichier CSV.</p>
+    </div>
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fs-6">
+        <i class="bi bi-speedometer2 me-1"></i> Modèles Optimisés en Déploiement
+    </span>
+</div>
+
+<!-- Section 1 : Benchmark Multi-Modèles -->
+<div class="card border-0 bg-dark-subtle shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0 pt-3 px-3 d-flex justify-content-between align-items-center">
+        <h5 class="h6 mb-0 text-light"><i class="bi bi-trophy me-2 text-warning"></i>Benchmark Académique : Baseline vs Modèles Ensembles (Expérience C - URL ONLY)</h5>
+        <span class="badge bg-secondary-subtle text-light small">Jeu de test scellé (46 878 URLs)</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="bg-dark text-secondary">
+                    <tr>
+                        <th>Modèle</th>
+                        <th>Famille d'Algorithme</th>
+                        <th class="text-center">F1-Score</th>
+                        <th class="text-center">PR-AUC</th>
+                        <th class="text-center">ROC-AUC</th>
+                        <th class="text-center">Précision</th>
+                        <th class="text-center">Rappel</th>
+                        <th>Validation Croisée (AP)</th>
+                        <th class="text-center">Latence</th>
+                        <th class="text-center">Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in benchmarks %}
+                    <tr {% if 'Retenu' in b.model %}class="table-active"{% endif %}>
+                        <td class="fw-bold text-light">
+                            {% if 'Retenu' in b.model %}<i class="bi bi-star-fill text-warning me-1"></i>{% endif %}
+                            {{ b.model }}
+                        </td>
+                        <td><span class="badge bg-dark text-secondary border border-secondary border-opacity-10">{{ b.type }}</span></td>
+                        <td class="text-center fw-bold {% if b.f1 >= 0.99 %}text-success{% elif b.f1 >= 0.95 %}text-warning{% else %}text-secondary{% endif %}">
+                            {{ "%.4f"|format(b.f1) }}
+                        </td>
+                        <td class="text-center font-monospace text-light">{{ "%.4f"|format(b.pr_auc) }}</td>
+                        <td class="text-center font-monospace text-light">{{ "%.4f"|format(b.roc_auc) }}</td>
+                        <td class="text-center font-monospace text-secondary">{{ "%.4f"|format(b.precision) }}</td>
+                        <td class="text-center font-monospace text-secondary">{{ "%.4f"|format(b.recall) }}</td>
+                        <td class="font-monospace small text-secondary">{{ b.cv_score }}</td>
+                        <td class="text-center font-monospace text-info">{{ b.latency_ms }} ms</td>
+                        <td class="text-center">
+                            {% if 'Champion' in b.status %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">{{ b.status }}</span>
+                            {% elif 'Optimisé' in b.status %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle">{{ b.status }}</span>
+                            {% elif 'Baseline' in b.status %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ b.status }}</span>
+                            {% else %}
+                            <span class="badge bg-dark text-muted">{{ b.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Section 2 : Inférence par lot (Upload CSV) -->
+<div class="card border-0 bg-dark-subtle shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0 pt-3 px-3">
+        <h5 class="h6 mb-0 text-light"><i class="bi bi-file-earmark-arrow-up me-2 text-primary"></i>Inférence par Lot : Importer un fichier CSV d'URLs</h5>
+        <small class="text-secondary">Téléversez un fichier CSV (contenant une colonne <code>url</code>, <code>link</code>, ou la première colonne textuelle). Inférence instantanée via le modèle scellé Expérience C.</small>
+    </div>
+    <div class="card-body p-3">
+        {% if batch_error %}
+        <div class="alert alert-danger small d-flex gap-2 align-items-center mb-3">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div>{{ batch_error }}</div>
+        </div>
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data" class="row g-3 align-items-end">
+            <div class="col-md-8">
+                <label for="csv_file" class="form-label text-secondary small fw-semibold">Fichier CSV à classifier</label>
+                <input class="form-control bg-dark border-secondary border-opacity-10 text-light" type="file" id="csv_file" name="csv_file" accept=".csv" required>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-play-circle me-1"></i>Classifier le Fichier CSV</button>
+            </div>
+        </form>
+
+        {% if batch_results %}
+        <hr class="border-secondary border-opacity-10 my-4">
+        
+        <!-- Résumé statistique du lot -->
+        <div class="row g-3 mb-3">
+            <div class="col-sm-3">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-10 text-center">
+                    <span class="text-secondary small">Total Traité</span>
+                    <div class="fs-5 fw-bold text-light">{{ batch_results.total_processed }} URLs</div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-10 text-center">
+                    <span class="text-secondary small">Détectés Phishing</span>
+                    <div class="fs-5 fw-bold text-danger">{{ batch_results.n_phishing }}</div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-10 text-center">
+                    <span class="text-secondary small">Détectés Légitimes</span>
+                    <div class="fs-5 fw-bold text-success">{{ batch_results.n_legit }}</div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-10 text-center">
+                    <span class="text-secondary small">Taux de Menace</span>
+                    <div class="fs-5 fw-bold text-warning">{{ batch_results.phishing_pct }}%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bouton d'export CSV -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0 text-light small"><i class="bi bi-table me-1"></i>Aperçu des Résultats (Colonne utilisée : <code>{{ batch_results.url_column_used }}</code>)</h6>
+            <button class="btn btn-sm btn-success" onclick="downloadBatchCSV()"><i class="bi bi-download me-1"></i>Exporter les Prédictions (CSV)</button>
+        </div>
+
+        <!-- Tableau des résultats par lot -->
+        <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0 small" id="batchResultTable">
+                <thead class="bg-dark text-secondary sticky-top">
+                    <tr>
+                        <th>#</th>
+                        <th>URL Analysée</th>
+                        <th class="text-center">Verdict</th>
+                        <th class="text-end">Score de Risque</th>
+                        <th>Remarques & Avertissements</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in batch_results.records %}
+                    <tr>
+                        <td class="text-muted">{{ loop.index }}</td>
+                        <td class="font-monospace text-light text-truncate" style="max-width: 380px;" title="{{ r.url }}">{{ r.url }}</td>
+                        <td class="text-center">
+                            {% if r.verdict == 'PHISHING' %}
+                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>PHISHING</span>
+                            {% elif r.verdict == 'LEGITIME' %}
+                            <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i>LÉGITIME</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ r.verdict }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end font-monospace {% if r.score >= 0.5 %}text-danger fw-bold{% else %}text-success{% endif %}">
+                            {{ "%.4f"|format(r.score) }}
+                        </td>
+                        <td class="text-secondary small">{{ r.warnings }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function downloadBatchCSV() {
+    const records = {{ batch_results.records|tojson if batch_results else '[]' }};
+    if (!records || records.length === 0) return;
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "url,verdict,score_phishing,is_phishing,warnings\r\n";
+
+    records.forEach(r => {
+        const cleanUrl = '"' + r.url.replace(/"/g, '""') + '"';
+        const cleanWarn = '"' + (r.warnings || '').replace(/"/g, '""') + '"';
+        csvContent += `${cleanUrl},${r.verdict},${r.score},${r.is_phishing},${cleanWarn}\r\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "predictions_phishguard_batch.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+{% endblock %}

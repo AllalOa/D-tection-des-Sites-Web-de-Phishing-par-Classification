@@ -45,6 +45,7 @@ class TestCSourceSelection:
         for feat, src_path in sources.items():
             assert "url_features_all.csv" in src_path, f"Source inattendue pour {feat}: {src_path}"
 
+    @pytest.mark.skipif(not URL_FEATURES_CSV.exists(), reason="url_features_all.csv absent (généré depuis data/raw/PhiUSIIL_Phishing_URL_Dataset.csv)")
     def test_url_features_csv_exists_and_shape(self):
         """Le fichier url_features_all.csv doit exister et contenir exactement 235 370 lignes."""
         assert URL_FEATURES_CSV.exists(), f"Fichier introuvable: {URL_FEATURES_CSV}"
@@ -65,6 +66,7 @@ class TestCFeaturesAudit:
         assert len(c_feats) == 18, f"Attendu 18 features, obtenu {len(c_feats)}"
         assert c_feats == URL_ONLY_FEATURES, "EXPERIMENT_FEATURES['C'] ne correspond pas à URL_ONLY_FEATURES"
 
+    @pytest.mark.skipif(not URL_FEATURES_CSV.exists(), reason="url_features_all.csv absent (généré depuis data/raw/PhiUSIIL_Phishing_URL_Dataset.csv)")
     def test_all_18_features_in_csv_no_nans(self):
         """Toutes les 18 features doivent être dans le CSV sans NaN ni Inf."""
         df = pd.read_csv(URL_FEATURES_CSV)
@@ -98,6 +100,7 @@ class TestCFeaturesOrder:
         for idx, (f_c, f_orig) in enumerate(zip(c_feats, URL_ONLY_FEATURES)):
             assert f_c == f_orig, f"Désaccord d'ordre à l'index {idx}: {f_c} != {f_orig}"
 
+    @pytest.mark.skipif(not URL_FEATURES_CSV.exists(), reason="url_features_all.csv absent (généré depuis data/raw/PhiUSIIL_Phishing_URL_Dataset.csv)")
     def test_csv_features_order(self):
         """Les colonnes features dans url_features_all.csv doivent respecter l'ordre officiel."""
         df = pd.read_csv(URL_FEATURES_CSV, nrows=2)
@@ -112,6 +115,7 @@ class TestCFeaturesOrder:
 class TestConsistencyWithD:
     """Vérifie l'alignement strict entre C et D."""
 
+    @pytest.mark.skipif(not URL_FEATURES_CSV.exists(), reason="url_features_all.csv absent (généré depuis data/raw/PhiUSIIL_Phishing_URL_Dataset.csv)")
     def test_same_row_ids_and_labels(self):
         """url_features_all.csv et host_features_all.csv doivent avoir les mêmes row_id et labels."""
         df_c = pd.read_csv(URL_FEATURES_CSV, usecols=["row_id", TARGET_COL, GROUP_COL])
@@ -122,6 +126,7 @@ class TestConsistencyWithD:
         assert (df_c[TARGET_COL].values == df_d[TARGET_COL].values).all(), "Désaccord sur les labels entre C et D !"
         assert (df_c[GROUP_COL].values == df_d[GROUP_COL].values).all(), "Désaccord sur les groupes Host entre C et D !"
 
+    @pytest.mark.skipif(not URL_FEATURES_CSV.exists(), reason="url_features_all.csv absent (généré depuis data/raw/PhiUSIIL_Phishing_URL_Dataset.csv)")
     def test_class_balance_exact(self):
         """Les effectifs par classe doivent être exactement 134 850 (0) et 100 520 (1)."""
         df_c = pd.read_csv(URL_FEATURES_CSV, usecols=[TARGET_COL])
@@ -136,6 +141,7 @@ class TestConsistencyWithD:
 class TestSplitConsistencyByHost:
     """Vérifie que make_train_test_split produit des partitions identiques pour C et D."""
 
+    @pytest.mark.skipif(not URL_FEATURES_CSV.exists(), reason="url_features_all.csv absent (généré depuis data/raw/PhiUSIIL_Phishing_URL_Dataset.csv)")
     def test_split_produces_identical_splits(self):
         """Train et Test doivent contenir exactement les mêmes row_id et observations pour C et D."""
         df_c = pd.read_csv(URL_FEATURES_CSV, usecols=["row_id", GROUP_COL, TARGET_COL])
@@ -155,6 +161,7 @@ class TestSplitConsistencyByHost:
         test_hosts = set(test_c[GROUP_COL])
         assert len(train_hosts & test_hosts) == 0, "Fuite de Host entre Train et Test !"
 
+    @pytest.mark.skipif(not URL_FEATURES_CSV.exists(), reason="url_features_all.csv absent (généré depuis data/raw/PhiUSIIL_Phishing_URL_Dataset.csv)")
     def test_cv_folds_no_host_overlap(self):
         """GroupKFold ne doit avoir aucun Host partagé entre train et val sur chaque pli."""
         df_c = pd.read_csv(URL_FEATURES_CSV, usecols=["row_id", GROUP_COL, TARGET_COL])

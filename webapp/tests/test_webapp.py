@@ -280,3 +280,92 @@ def test_g2_warning_is_returned_by_api(client):
 def test_to_jsonable_handles_numpy_and_nan():
     out = svc.to_jsonable({"a": np.int64(3), "b": np.float64("nan"), "c": [np.bool_(True)]})
     assert out == {"a": 3, "b": None, "c": [True]}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Tests des 4 volets académiques requis par le barème (Qualité, EDA, Stats, Lot)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_panel_1_quality_route(client):
+    """Vérifie que la route /quality (Volet 1 Contrôle Qualité) répond 200 avec les données d'intégrité."""
+    resp = client.get("/quality")
+    assert resp.status_code == 200
+    assert "Contrôle Qualité" in resp.text
+    assert "235" in resp.text
+    assert "425" in resp.text  # Doublons supprimés
+
+
+def test_panel_2_eda_route(client):
+    """Vérifie que la route /eda (Volet 2 EDA interactive) répond 200 et liste les figures."""
+    resp = client.get("/eda")
+    assert resp.status_code == 200
+    assert "Analyse Exploratoire" in resp.text
+    assert "Figure" in resp.text
+
+
+def test_panel_3_statistics_route(client):
+    """Vérifie que la route /statistiques (Volet 3 Tests statistiques) répond 200 avec Chi2, Mann-Whitney, etc."""
+    resp = client.get("/statistiques")
+    assert resp.status_code == 200
+    assert "Validation Statistique" in resp.text
+    assert "Chi-Square" in resp.text or "Mann-Whitney" in resp.text
+
+
+def test_panel_4_benchmark_route_and_batch_csv(client):
+    """Vérifie que la route /benchmark répond 200 en GET et traite l'inférence par lot en POST."""
+    resp_get = client.get("/benchmark")
+    assert resp_get.status_code == 200
+    assert "Benchmark Multi-Modèles" in resp_get.text
+    assert "RandomForest" in resp_get.text
+
+    # Test POST inférence par lot avec un mini CSV simulé
+    import io
+    csv_data = io.BytesIO(b"url\nhttps://www.southbankmosaics.com\nhttp://paypal-security-update.com/login\n")
+    resp_post = client.post(
+        "/benchmark",
+        data={"csv_file": (csv_data, "test_urls.csv")},
+        content_type="multipart/form-data"
+    )
+    assert resp_post.status_code == 200
+    assert "Total Traité" in resp_post.text
+    assert "2 URLs" in resp_post.text
+
+
+@pytest.fixture
+def real_artifacts_client():
+    """Client Flask connecté aux vrais artéfacts du projet (sans mock)."""
+    webapp_module.app.config["TESTING"] = True
+    return webapp_module.app.test_client()
+
+
+def test_eda_page_displays_at_least_10_figures(real_artifacts_client):
+    """Échoue impérativement si /eda affiche 0 figure ou si moins de 10 figures sont présentes."""
+    resp = real_artifacts_client.get("/eda")
+    assert resp.status_code == 200
+    assert not re.search(r"\b0 Figures Scientifiques\b", resp.text), "Régression critique : /eda affiche 0 figure !"
+    assert resp.text.count("figure-card") >= 10, (
+        f"Moins de 10 figures détectées dans /eda : trouvé {resp.text.count('figure-card')}"
+    )
+
+
+def test_predict_page_has_ready_predictor_and_no_unavailable_banner(real_artifacts_client):
+    """Échoue impérativement si /predict indique que les modèles ou predict.py sont introuvables."""
+    resp = real_artifacts_client.get("/predict")
+    assert resp.status_code == 200
+    assert "Modèles ou module de prédiction introuvables" not in resp.text, (
+        "Régression critique : /predict affiche que models ou predict.py sont introuvables !"
+    )
+    assert "Module de prédiction indisponible" not in resp.text
+
+
+def test_live_prediction_on_service_login_url(real_artifacts_client):
+    """Vérifie la prédiction réelle de bout en bout sur l'URL d'ingénierie sociale https://www.service-login.com/."""
+    resp = real_artifacts_client.post("/api/predict", json={"url": "https://www.service-login.com/", "experiment": "C"})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["success"] is True
+    assert data["predicted_class"] == 1
+    assert data["predicted_label"] == "phishing"
+    assert data["model_score"] > 0.5
+
+

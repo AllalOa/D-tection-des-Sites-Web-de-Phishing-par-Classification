@@ -45,6 +45,73 @@ _RE_IPV4 = re.compile(
 # (hors alphanumériques, sans les séparateurs URL standard / : . -)
 _SPECIAL_CHARS = set("@!#$%^&*()+=[]{}|;',<>?~`\"\\")
 
+# Mots-clés fréquemment rencontrés dans les URLs de phishing (ingénierie sociale / spoofing)
+SUSPICIOUS_KEYWORDS = [
+    "login", "signin", "log-in", "sign-in", "verify", "verification",
+    "account", "update", "banking", "secure", "security", "webscr",
+    "ebayisapi", "paypal", "appleid", "wallet", "confirm", "password",
+    "credential", "auth", "support", "billing", "recover", "service",
+    "portal", "validate", "token", "session"
+]
+
+# Principaux services de réduction d'URLs souvent abusés
+URL_SHORTENERS = {
+    "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd",
+    "buff.ly", "adf.ly", "bit.do", "cutt.ly"
+}
+
+
+def calculate_entropy(text: str) -> float:
+    """Calcule l'entropie de Shannon d'une chaîne de caractères."""
+    if not text:
+        return 0.0
+    prob = [float(text.count(c)) / len(text) for c in dict.fromkeys(list(text))]
+    return -sum(p * math.log2(p) for p in prob)
+
+
+def extract_lexical_descriptors(url: str) -> dict:
+    """
+    Extrait l'ensemble des descripteurs lexicaux d'une URL pour l'analyse en temps réel.
+    (longueur, présence d'IP, nb de caractères spéciaux, sous-domaines, HTTPS, mots suspects, entropie...)
+    """
+    url_str = str(url) if not isinstance(url, str) else url
+    try:
+        parsed = urlsplit(url_str)
+        scheme = parsed.scheme.lower() if parsed.scheme else ""
+        raw_host = parsed.hostname or ""
+        host = raw_host.strip("[]").lower() if raw_host else ""
+        path = parsed.path or ""
+    except Exception:
+        scheme = ""
+        host = ""
+        path = ""
+
+    url_lower = url_str.lower()
+    is_domain_ip = int(_is_ip_address(host))
+    subdomains_count = max(0, host.count(".") - 1) if (host and not is_domain_ip) else 0
+
+    # Recherche des mots suspects
+    found_keywords = [kw for kw in SUSPICIOUS_KEYWORDS if kw in url_lower]
+
+    return {
+        "url": url_str,
+        "url_length": len(url_str),
+        "domain": host,
+        "domain_length": len(host),
+        "path_length": len(path),
+        "is_https": int(scheme == "https"),
+        "is_domain_ip": is_domain_ip,
+        "nb_subdomains": subdomains_count,
+        "nb_special_chars": sum(1 for c in url_str if c in _SPECIAL_CHARS),
+        "nb_hyphens": host.count("-"),
+        "nb_at_symbol": url_str.count("@"),
+        "nb_dots_in_host": host.count("."),
+        "nb_suspicious_keywords": len(found_keywords),
+        "suspicious_keywords_found": found_keywords,
+        "is_shortened": int(host in URL_SHORTENERS),
+        "shannon_entropy": round(calculate_entropy(url_str), 4),
+    }
+
 
 def _is_ip_address(host: str) -> bool:
     """Retourne True si host est une adresse IPv4 ou IPv6 valide."""
@@ -58,7 +125,7 @@ def _is_ip_address(host: str) -> bool:
         return False
 
 
-def compute_url_features(url: str) -> dict:
+def compute_url_features(url: str, extended: bool = False) -> dict:
     """
     Calcule les 18 variables URL_ONLY depuis la chaîne d'URL brute.
 
@@ -68,11 +135,13 @@ def compute_url_features(url: str) -> dict:
     ----------
     url : str
         L'URL brute (ex: 'https://www.example.com/path?q=1').
+    extended : bool, optional
+        Si True, inclut également un sous-dictionnaire 'lexical_descriptors' enrichi.
 
     Returns
     -------
     dict
-        Dictionnaire {nom_variable: valeur} pour les 18 variables.
+        Dictionnaire {nom_variable: valeur} pour les 18 variables (+ descripteurs si extended).
     """
     # Garantir que url est une chaîne
     url = str(url) if not isinstance(url, str) else url
@@ -147,7 +216,7 @@ def compute_url_features(url: str) -> dict:
     no_spacial = sum(1 for c in url if c in _SPECIAL_CHARS)
     spacial_char_ratio = no_spacial / url_length if url_length > 0 else 0.0
 
-    return {
+    features_dict = {
         "URLLength": url_length,
         "DomainLength": domain_length,
         "IsDomainIP": is_domain_ip,
@@ -167,6 +236,9 @@ def compute_url_features(url: str) -> dict:
         "SpacialCharRatioInURL": spacial_char_ratio,
         "IsHTTPS": is_https,
     }
+    if extended:
+        features_dict["lexical_descriptors"] = extract_lexical_descriptors(url)
+    return features_dict
 
 
 def compute_url_features_batch(

@@ -33,7 +33,20 @@ import sys
 from pathlib import Path
 
 # ── Chemin projet ──────────────────────────────────────────────────────────────
-ROOT = Path(__file__).resolve().parent.parent
+def _find_project_root() -> Path:
+    """Trouve la racine du projet en remontant depuis __file__."""
+    cur = Path(__file__).resolve().parent
+    for _ in range(5):
+        if (cur / "models").is_dir() and (cur / "src").is_dir() and (cur / "reports").is_dir():
+            return cur
+        cur = cur.parent
+    # Repli si la structure est standard (webapp/webapp/app.py -> 3 niveaux au-dessus)
+    fallback = Path(__file__).resolve().parent.parent.parent
+    if (fallback / "models").is_dir():
+        return fallback
+    return Path(__file__).resolve().parent.parent
+
+ROOT = _find_project_root()
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -204,6 +217,64 @@ def limits():
         subgroups=svc.SUBGROUPS_DOC,
         baselines=svc.BASELINES_DOC,
         dataset=svc.DATASET_INFO,
+    )
+
+
+# ── Volet 1 : Contrôle Qualité ───────────────────────────────────────────────
+@app.route("/quality")
+def quality():
+    """Volet 1 du barème académique : Contrôle qualité des données."""
+    qc_data = svc.load_quality_control(TABLES_DIR)
+    return render_template("quality.html", **qc_data)
+
+
+# ── Volet 2 : EDA Interactive ────────────────────────────────────────────────
+@app.route("/eda")
+def eda():
+    """Volet 2 du barème académique : Galerie exploratoire interactive (>= 10 figures)."""
+    figures = svc.load_eda_figures(FIGURES_DIR)
+    return render_template("eda.html", figures=figures, dataset=svc.DATASET_INFO)
+
+
+# ── Volet 3 : Validation Statistique ─────────────────────────────────────────
+@app.route("/statistiques")
+def statistics():
+    """Volet 3 du barème académique : Validation statistique (>= 4 tests formels)."""
+    tests_list = svc.load_statistical_tests(TABLES_DIR)
+    return render_template("statistics.html", tests=tests_list)
+
+
+# ── Volet 4 : Benchmark & Inférence par lot ──────────────────────────────────
+@app.route("/benchmark", methods=["GET", "POST"])
+def benchmark():
+    """Volet 4 du barème académique : Benchmark de modèles et inférence par lot CSV."""
+    import io
+    import pandas as pd
+    benchmarks = svc.load_model_benchmarks(TABLES_DIR)
+    batch_results = None
+    batch_error = None
+
+    if request.method == "POST":
+        file = request.files.get("csv_file")
+        if not file or not file.filename:
+            batch_error = "Veuillez sélectionner un fichier CSV valide."
+        else:
+            try:
+                # Lecture tolérante du CSV
+                content = file.read().decode("utf-8", errors="ignore")
+                df_upload = pd.read_csv(io.StringIO(content))
+                if df_upload.empty:
+                    batch_error = "Le fichier CSV fourni est vide."
+                else:
+                    batch_results = svc.process_batch_inference_csv(df_upload, experiment="C", max_rows=500)
+            except Exception as e:
+                batch_error = f"Erreur lors du traitement du fichier CSV : {e}"
+
+    return render_template(
+        "benchmark.html",
+        benchmarks=benchmarks,
+        batch_results=batch_results,
+        batch_error=batch_error,
     )
 
 
